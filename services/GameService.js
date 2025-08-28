@@ -1,11 +1,24 @@
 const jwt = require('jsonwebtoken');
-const { pool } = require('../database/migrate');
+const dataAccess = require('../database/data-access');
 
 class GameService {
     constructor(io) {
         this.io = io;
         this.activePlayers = new Map(); // Map of socket.id -> player data
         this.playersByUserId = new Map(); // Map of user_id -> socket.id
+        this.movementIntents = new Map(); // Map of socket.id -> movement intent
+        this.gameLoopInterval = null;
+
+        this.startGameLoop();
+    }
+
+    startGameLoop() {
+        if (this.gameLoopInterval) {
+            clearInterval(this.gameLoopInterval);
+        }
+        this.gameLoopInterval = setInterval(() => {
+            this.updatePlayerPositions();
+        }, 1000 / 60); // 60 times per second
     }
 
     async authenticateUser(socket, data) {
@@ -23,19 +36,13 @@ class GameService {
                 throw new Error('Token user mismatch');
             }
 
-            const client = await pool.connect();
             try {
                 // Get user and character data
-                const userResult = await client.query(
-                    'SELECT u.*, c.* FROM users u LEFT JOIN characters c ON u.id = c.user_id WHERE u.id = $1 AND u.is_active = true',
-                    [decoded.userId]
-                );
+                const userData = await dataAccess.findUserAndCharacterById(decoded.userId);
 
-                if (userResult.rows.length === 0) {
+                if (!userData) {
                     throw new Error('User not found or inactive');
                 }
-
-                const userData = userResult.rows[0];
                 
                 // Store user data on socket
                 socket.user = {
@@ -68,26 +75,25 @@ class GameService {
                 this.activePlayers.set(socket.id, socket.user);
                 this.playersByUserId.set(userData.id, socket.id);
 
+                // Initialize movement intent
+                this.movementIntents.set(socket.id, {
+                    forward: false,
+                    backward: false,
+                    left: false,
+                    right: false,
+                    run: false
+                });
+
                 // Create or update user session
-                await client.query(`
-                    INSERT INTO user_sessions (user_id, character_id, socket_id, current_map, position_x, position_y, position_z)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    ON CONFLICT (user_id) DO UPDATE SET
-                        socket_id = $3,
-                        current_map = $4,
-                        position_x = $5,
-                        position_y = $6,
-                        position_z = $7,
-                        last_active = CURRENT_TIMESTAMP
-                `, [
-                    userData.id,
-                    userData.character_id || userData.id,
-                    socket.id,
-                    socket.user.character.currentMap,
-                    socket.user.character.position.x,
-                    socket.user.character.position.y,
-                    socket.user.character.position.z
-                ]);
+                await dataAccess.createOrUpdateUserSession({
+                    userId: userData.id,
+                    characterId: userData.character_id || userData.id,
+                    socketId: socket.id,
+                    currentMap: socket.user.character.currentMap,
+                    positionX: socket.user.character.position.x,
+                    positionY: socket.user.character.position.y,
+                    positionZ: socket.user.character.position.z
+                });
 
                 // Notify client of successful authentication
                 socket.emit('authenticated', {
@@ -122,66 +128,59 @@ class GameService {
         }
     }
 
-    async handlePlayerMovement(socket, data) {
+    async handlePlayerMovement(socket, movementIntent) {
         if (!socket.user) {
             return;
         }
-
-        try {
-            const { position, rotation, isMoving, isRunning } = data;
-
-            // Validate position data
-            if (!position || typeof position.x !== 'number' || typeof position.y !== 'number' || typeof position.z !== 'number') {
-                return;
-            }
-
-            // Update player position
-            socket.user.character.position = position;
-            socket.user.character.rotation = rotation || { x: 0, y: 0, z: 0 };
-            socket.user.character.isMoving = isMoving;
-            socket.user.character.isRunning = isRunning;
-
-            // Update in database (throttled to avoid too many DB calls)
-            this.throttledPositionUpdate(socket.user.id, position);
-
-            // Broadcast movement to other players in the same map
-            socket.to(socket.user.character.currentMap).emit('player_moved', {
-                userId: socket.user.id,
-                username: socket.user.username,
-                position: position,
-                rotation: rotation,
-                isMoving: isMoving,
-                isRunning: isRunning
-            });
-
-        } catch (error) {
-            console.error('Player movement error:', error);
-        }
+        this.movementIntents.set(socket.id, movementIntent);
     }
 
-    throttledPositionUpdate(userId, position) {
-        // Simple throttling - only update position in DB every 5 seconds
-        if (!this.positionUpdateTimers) {
-            this.positionUpdateTimers = new Map();
-        }
+    updatePlayerPositions() {
+        const moveSpeed = 5.0 / 60.0; // units per tick
 
-        if (!this.positionUpdateTimers.has(userId)) {
-            this.positionUpdateTimers.set(userId, setTimeout(async () => {
-                try {
-                    const client = await pool.connect();
-                    try {
-                        await client.query(
-                            'UPDATE characters SET position_x = $1, position_y = $2, position_z = $3, updated_at = CURRENT_TIMESTAMP WHERE user_id = $4',
-                            [position.x, position.y, position.z, userId]
-                        );
-                    } finally {
-                        client.release();
-                    }
-                } catch (error) {
-                    console.error('Position update error:', error);
-                }
-                this.positionUpdateTimers.delete(userId);
-            }, 5000));
+        for (const [socketId, player] of this.activePlayers) {
+            const intent = this.movementIntents.get(socketId);
+            if (!intent) continue;
+
+            let moved = false;
+            const moveVector = { x: 0, z: 0 };
+
+            if (intent.forward) {
+                moveVector.z += 1;
+                moved = true;
+            }
+            if (intent.backward) {
+                moveVector.z -= 1;
+                moved = true;
+            }
+            if (intent.left) {
+                moveVector.x -= 1;
+                moved = true;
+            }
+            if (intent.right) {
+                moveVector.x += 1;
+                moved = true;
+            }
+
+            if (moved) {
+                // For now, we'll just move along axes.
+                // A proper implementation would use the player's rotation.
+                player.character.position.x += moveVector.x * moveSpeed * (intent.run ? 1.5 : 1);
+                player.character.position.z += moveVector.z * moveSpeed * (intent.run ? 1.5 : 1);
+
+                // TODO: Server-side collision detection
+
+                this.throttledPositionUpdate(player.id, player.character.position);
+
+                this.io.to(player.character.currentMap).emit('player_moved', {
+                    userId: player.id,
+                    username: player.username,
+                    position: player.character.position,
+                    rotation: player.character.rotation, // Will need to calculate this too
+                    isMoving: moved,
+                    isRunning: intent.run
+                });
+            }
         }
     }
 
@@ -242,15 +241,7 @@ class GameService {
             this.sendOtherPlayersInMap(socket, newMapName);
             
             // Update database
-            const client = await pool.connect();
-            try {
-                await client.query(
-                    'UPDATE characters SET current_map = $1 WHERE user_id = $2',
-                    [newMapName, socket.user.id]
-                );
-            } finally {
-                client.release();
-            }
+            await dataAccess.updateCharacterMap(socket.user.id, newMapName);
             
             console.log(`Player ${socket.user.username} moved from ${oldMap} to ${newMapName}`);
             
@@ -511,26 +502,40 @@ class GameService {
             this.sendOtherPlayersInMap(socket, mapName);
             
             // Update database
-            const client = await pool.connect();
-            try {
-                await client.query(
-                    'UPDATE characters SET current_map = $1, position_x = $2, position_y = $3, position_z = $4 WHERE user_id = $5',
-                    [mapName, socket.user.character.position.x, socket.user.character.position.y, socket.user.character.position.z, socket.user.id]
-                );
-                
-                await client.query(
-                    'UPDATE user_sessions SET current_map = $1, position_x = $2, position_y = $3, position_z = $4 WHERE user_id = $5',
-                    [mapName, socket.user.character.position.x, socket.user.character.position.y, socket.user.character.position.z, socket.user.id]
-                );
-            } finally {
-                client.release();
-            }
+            await dataAccess.updateCharacterMap(socket.user.id, mapName);
+            await dataAccess.createOrUpdateUserSession({
+                userId: socket.user.id,
+                characterId: socket.user.character.id,
+                socketId: socket.id,
+                currentMap: mapName,
+                positionX: socket.user.character.position.x,
+                positionY: socket.user.character.position.y,
+                positionZ: socket.user.character.position.z
+            });
             
             console.log(`👑 Admin ${socket.user.username} teleported from ${oldMap} to ${mapName}`);
             
         } catch (error) {
             console.error('Admin map change error:', error);
             socket.emit('admin_teleport_error', { message: 'Failed to teleport' });
+        }
+    }
+
+    throttledPositionUpdate(userId, position) {
+        // Simple throttling - only update position in DB every 5 seconds
+        if (!this.positionUpdateTimers) {
+            this.positionUpdateTimers = new Map();
+        }
+
+        if (!this.positionUpdateTimers.has(userId)) {
+            this.positionUpdateTimers.set(userId, setTimeout(async () => {
+                try {
+                    await dataAccess.updateCharacterPosition(userId, position);
+                } catch (error) {
+                    console.error('Position update error:', error);
+                }
+                this.positionUpdateTimers.delete(userId);
+            }, 5000));
         }
     }
 
@@ -549,23 +554,9 @@ class GameService {
             });
             
             // Update database session
-            this.updateSessionOnDisconnect(socket.user.id);
-        }
-    }
-
-    async updateSessionOnDisconnect(userId) {
-        try {
-            const client = await pool.connect();
-            try {
-                await client.query(
-                    'DELETE FROM user_sessions WHERE user_id = $1',
-                    [userId]
-                );
-            } finally {
-                client.release();
-            }
-        } catch (error) {
-            console.error('Session cleanup error:', error);
+            dataAccess.deleteUserSession(socket.user.id).catch(error => {
+                console.error('Session cleanup error:', error);
+            });
         }
     }
 

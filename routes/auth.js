@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
-const { pool } = require('../database/migrate');
+const dataAccess = require('../database/data-access');
 
 const router = express.Router();
 
@@ -68,16 +68,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
     
-    const client = await pool.connect();
-    
     try {
       // Check if username or email already exists
-      const existingUser = await client.query(
-        'SELECT id FROM users WHERE username = $1 OR email = $2',
-        [username, email]
-      );
+      const existingUser = await dataAccess.findUserByUsernameOrEmail(username, email);
       
-      if (existingUser.rows.length > 0) {
+      if (existingUser) {
         return res.status(409).json({ message: 'Username or email already exists' });
       }
       
@@ -90,18 +85,10 @@ router.post('/register', async (req, res) => {
       const role = 'user';
       
       // Create user
-      const result = await client.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
-        [username, email, passwordHash, role]
-      );
-      
-      const newUser = result.rows[0];
+      const newUser = await dataAccess.createUser(username, email, passwordHash, role);
       
       // Create default character
-      await client.query(
-        'INSERT INTO characters (user_id, name, current_map) VALUES ($1, $2, $3)',
-        [newUser.id, username, 'house_inside']
-      );
+      await dataAccess.createCharacter(newUser.id, username, 'house_inside');
       
       // Generate JWT token
       const token = jwt.sign(
@@ -111,12 +98,7 @@ router.post('/register', async (req, res) => {
       );
       
       // Get character information
-      const characterResult = await client.query(
-        'SELECT name, current_map FROM characters WHERE user_id = $1',
-        [newUser.id]
-      );
-      
-      const character = characterResult.rows[0] || { name: username, current_map: 'house_inside' };
+      const character = await dataAccess.findCharacterByUserId(newUser.id) || { name: username, current_map: 'house_inside' };
       
       res.status(201).json({
         message: 'User registered successfully',
@@ -152,20 +134,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Login and password are required' });
     }
     
-    const client = await pool.connect();
-    
     try {
       // Find user by username or email
-      const result = await client.query(
-        'SELECT id, username, email, password_hash, role, is_active FROM users WHERE username = $1 OR email = $1',
-        [login]
-      );
+      const user = await dataAccess.findUserByLogin(login);
       
-      if (result.rows.length === 0) {
+      if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
-      
-      const user = result.rows[0];
       
       if (!user.is_active) {
         return res.status(401).json({ message: 'Account is deactivated' });
@@ -185,12 +160,7 @@ router.post('/login', async (req, res) => {
       );
       
       // Get character information
-      const characterResult = await client.query(
-        'SELECT name, current_map FROM characters WHERE user_id = $1',
-        [user.id]
-      );
-      
-      const character = characterResult.rows[0] || { name: user.username, current_map: 'house_inside' };
+      const character = await dataAccess.findCharacterByUserId(user.id) || { name: user.username, current_map: 'house_inside' };
       
       res.json({
         message: 'Login successful',
@@ -206,10 +176,6 @@ router.post('/login', async (req, res) => {
           }
         }
       });
-      
-    } finally {
-      client.release();
-    }
     
   } catch (error) {
     console.error('Login error:', error);
@@ -228,36 +194,28 @@ router.get('/verify', async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const client = await pool.connect();
     try {
-      const result = await client.query(
-        'SELECT id, username, email, role, is_active FROM users WHERE id = $1',
-        [decoded.userId]
-      );
+      const user = await dataAccess.findUserById(decoded.userId);
       
-      if (result.rows.length === 0 || !result.rows[0].is_active) {
+      if (!user || !user.is_active) {
         return res.status(401).json({ message: 'Invalid token' });
       }
       
       // Get character information
-      const characterResult = await client.query(
-        'SELECT name, current_map FROM characters WHERE user_id = $1',
-        [decoded.userId]
-      );
-      
-      const character = characterResult.rows[0] || { name: result.rows[0].username, current_map: 'house_inside' };
+      const character = await dataAccess.findCharacterByUserId(user.id) || { name: user.username, current_map: 'house_inside' };
       
       res.json({ 
         user: {
-          ...result.rows[0],
+          ...user,
           character: {
             name: character.name,
             currentMap: character.current_map
           }
         }
       });
-    } finally {
-      client.release();
+    } catch (error) {
+        console.error('Verify error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
     
   } catch (error) {
@@ -268,96 +226,60 @@ router.get('/verify', async (req, res) => {
 // Quick test user creation endpoint (development only)
 router.post('/create-test-user', async (req, res) => {
   try {
-    const client = await pool.connect();
+    // Check if test user already exists
+    let user = await dataAccess.findUserByLogin('test_leduc');
     
-    try {
-      // Check if test user already exists
-      const existingUser = await client.query(
-        'SELECT id FROM users WHERE username = $1',
-        ['test_leduc']
-      );
-      
-      if (existingUser.rows.length > 0) {
-        // User exists, just return login token
-        const user = await client.query(
-          'SELECT id, username, email, role FROM users WHERE username = $1',
-          ['test_leduc']
-        );
-        
-        const token = jwt.sign(
-          { userId: user.rows[0].id, username: user.rows[0].username, role: user.rows[0].role },
-          process.env.JWT_SECRET,
-          { expiresIn: '7d' }
-        );
-        
-        // Get character information
-        const characterResult = await client.query(
-          'SELECT name, current_map FROM characters WHERE user_id = $1',
-          [user.rows[0].id]
-        );
-        
-        const character = characterResult.rows[0] || { name: user.rows[0].username, current_map: 'house_inside' };
-        
-        return res.json({
-          message: 'Test user already exists',
-          token,
-          user: {
-            ...user.rows[0],
-            character: {
-              name: character.name,
-              currentMap: character.current_map
-            }
-          }
-        });
-      }
-      
-      // Create test user
-      const passwordHash = await bcrypt.hash('TestLeduc123!', 12);
-      
-      const result = await client.query(
-        'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
-        ['test_leduc', 'test@leduc.com', passwordHash, 'admin']
-      );
-      
-      const newUser = result.rows[0];
-      
-      // Create default character
-      await client.query(
-        'INSERT INTO characters (user_id, name, current_map) VALUES ($1, $2, $3)',
-        [newUser.id, 'test_leduc', 'house_inside']
-      );
-      
-      // Generate JWT token
+    if (user) {
+      // User exists, just return login token
       const token = jwt.sign(
-        { userId: newUser.id, username: newUser.username, role: newUser.role },
+        { userId: user.id, username: user.username, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
       
-      // Get character information
-      const characterResult = await client.query(
-        'SELECT name, current_map FROM characters WHERE user_id = $1',
-        [newUser.id]
-      );
+      const character = await dataAccess.findCharacterByUserId(user.id) || { name: user.username, current_map: 'house_inside' };
       
-      const character = characterResult.rows[0] || { name: newUser.username, current_map: 'house_inside' };
-      
-      res.status(201).json({
-        message: 'Test user created successfully',
+      return res.json({
+        message: 'Test user already exists',
         token,
         user: {
-          ...newUser,
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
           character: {
             name: character.name,
             currentMap: character.current_map
           }
         }
       });
-      
-    } finally {
-      client.release();
     }
     
+    // Create test user
+    const passwordHash = await bcrypt.hash('TestLeduc123!', 12);
+    const newUser = await dataAccess.createUser('test_leduc', 'test@leduc.com', passwordHash, 'admin');
+    await dataAccess.createCharacter(newUser.id, 'test_leduc', 'house_inside');
+
+    const token = jwt.sign(
+      { userId: newUser.id, username: newUser.username, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const character = await dataAccess.findCharacterByUserId(newUser.id) || { name: newUser.username, current_map: 'house_inside' };
+
+    res.status(201).json({
+      message: 'Test user created successfully',
+      token,
+      user: {
+        ...newUser,
+        character: {
+          name: character.name,
+          currentMap: character.current_map
+        }
+      }
+    });
+
   } catch (error) {
     console.error('Test user creation error:', error);
     res.status(500).json({ message: 'Failed to create test user' });

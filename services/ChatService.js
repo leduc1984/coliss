@@ -1,4 +1,4 @@
-const { pool } = require('../database/migrate');
+const dataAccess = require('../database/data-access');
 
 class ChatService {
   constructor(io) {
@@ -116,14 +116,9 @@ class ChatService {
   }
 
   async sendMessage(socket, messageData) {
-    const client = await pool.connect();
-    
     try {
       // Save message to database
-      await client.query(
-        'INSERT INTO chat_messages (user_id, username, message, channel) VALUES ($1, $2, $3, $4)',
-        [messageData.user_id, messageData.username, messageData.message, messageData.channel]
-      );
+      await dataAccess.saveChatMessage(messageData);
 
       // Broadcast message to all users in the channel
       const chatMessage = {
@@ -137,8 +132,9 @@ class ChatService {
 
       this.io.emit('chat_message', chatMessage);
 
-    } finally {
-      client.release();
+    } catch (error) {
+        console.error('Error sending message:', error);
+        socket.emit('chat_error', { message: 'Failed to send message' });
     }
   }
 
@@ -769,34 +765,25 @@ class ChatService {
     }
 
     try {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          'UPDATE users SET role = $1 WHERE username = $2 RETURNING username, role',
-          [newRole, targetUsername]
-        );
+      const result = await dataAccess.updateUserRole(targetUsername, newRole);
 
-        if (result.rows.length === 0) {
-          socket.emit('chat_system', {
-            message: 'User not found in database.',
-            type: 'error'
-          });
-          return;
-        }
-
-        this.io.emit('chat_system', {
-          message: `${targetUsername} has been promoted to ${newRole} by ${socket.user.username}`,
-          type: 'info'
+      if (!result) {
+        socket.emit('chat_system', {
+          message: 'User not found in database.',
+          type: 'error'
         });
-        
-        const targetSocket = this.findUserSocket(targetUsername);
-        if (targetSocket) {
-          targetSocket.user.role = newRole;
-          targetSocket.emit('role_updated', { newRole });
-        }
+        return;
+      }
 
-      } finally {
-        client.release();
+      this.io.emit('chat_system', {
+        message: `${targetUsername} has been promoted to ${newRole} by ${socket.user.username}`,
+        type: 'info'
+      });
+
+      const targetSocket = this.findUserSocket(targetUsername);
+      if (targetSocket) {
+        targetSocket.user.role = newRole;
+        targetSocket.emit('role_updated', { newRole });
       }
     } catch (error) {
       console.error('Promote user error:', error);
@@ -830,35 +817,26 @@ class ChatService {
     }
 
     try {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          'UPDATE users SET is_active = false WHERE username = $1 RETURNING username',
-          [targetUsername]
-        );
+      const result = await dataAccess.banUser(targetUsername);
 
-        if (result.rows.length === 0) {
-          socket.emit('chat_system', {
-            message: 'User not found.',
-            type: 'error'
-          });
-          return;
-        }
-
-        const targetSocket = this.findUserSocket(targetUsername);
-        if (targetSocket) {
-          targetSocket.emit('banned', { reason: `Banned by ${socket.user.username}: ${reason}` });
-          targetSocket.disconnect();
-        }
-
-        this.io.emit('chat_system', {
-          message: `${targetUsername} has been banned by ${socket.user.username}. Reason: ${reason}`,
-          type: 'warning'
+      if (!result) {
+        socket.emit('chat_system', {
+          message: 'User not found.',
+          type: 'error'
         });
-
-      } finally {
-        client.release();
+        return;
       }
+
+      const targetSocket = this.findUserSocket(targetUsername);
+      if (targetSocket) {
+        targetSocket.emit('banned', { reason: `Banned by ${socket.user.username}: ${reason}` });
+        targetSocket.disconnect();
+      }
+
+      this.io.emit('chat_system', {
+        message: `${targetUsername} has been banned by ${socket.user.username}. Reason: ${reason}`,
+        type: 'warning'
+      });
     } catch (error) {
       console.error('Ban user error:', error);
       socket.emit('chat_system', {
@@ -880,29 +858,20 @@ class ChatService {
     }
 
     try {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          'UPDATE users SET is_active = true WHERE username = $1 RETURNING username',
-          [targetUsername]
-        );
+      const result = await dataAccess.unbanUser(targetUsername);
 
-        if (result.rows.length === 0) {
-          socket.emit('chat_system', {
-            message: 'User not found.',
-            type: 'error'
-          });
-          return;
-        }
-
-        this.io.emit('chat_system', {
-          message: `${targetUsername} has been unbanned by ${socket.user.username}`,
-          type: 'info'
+      if (!result) {
+        socket.emit('chat_system', {
+          message: 'User not found.',
+          type: 'error'
         });
-
-      } finally {
-        client.release();
+        return;
       }
+
+      this.io.emit('chat_system', {
+        message: `${targetUsername} has been unbanned by ${socket.user.username}`,
+        type: 'info'
+      });
     } catch (error) {
       console.error('Unban user error:', error);
       socket.emit('chat_system', {
@@ -933,34 +902,25 @@ class ChatService {
     }
 
     try {
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          'UPDATE users SET role = \'user\' WHERE username = $1 AND role != \'admin\' RETURNING username, role',
-          [targetUsername]
-        );
+      const result = await dataAccess.demoteUser(targetUsername);
 
-        if (result.rows.length === 0) {
-          socket.emit('chat_system', {
-            message: 'User not found or cannot be demoted.',
-            type: 'error'
-          });
-          return;
-        }
-
-        this.io.emit('chat_system', {
-          message: `${targetUsername} has been demoted to user by ${socket.user.username}`,
-          type: 'warning'
+      if (!result) {
+        socket.emit('chat_system', {
+          message: 'User not found or cannot be demoted.',
+          type: 'error'
         });
-        
-        const targetSocket = this.findUserSocket(targetUsername);
-        if (targetSocket) {
-          targetSocket.user.role = 'user';
-          targetSocket.emit('role_updated', { newRole: 'user' });
-        }
+        return;
+      }
 
-      } finally {
-        client.release();
+      this.io.emit('chat_system', {
+        message: `${targetUsername} has been demoted to user by ${socket.user.username}`,
+        type: 'warning'
+      });
+
+      const targetSocket = this.findUserSocket(targetUsername);
+      if (targetSocket) {
+        targetSocket.user.role = 'user';
+        targetSocket.emit('role_updated', { newRole: 'user' });
       }
     } catch (error) {
       console.error('Demote user error:', error);

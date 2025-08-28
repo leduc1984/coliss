@@ -345,115 +345,18 @@ class PlayerController {
     }
 
     updateMovement() {
+        // This function no longer moves the player directly.
+        // It just determines the intended movement and animation state.
         const deltaTime = this.scene.getEngine().getDeltaTime() / 1000.0;
         let moved = false;
-        
-        // Phase 3: Implémentation du mouvement selon TODO spécifications ORAS
-        // "Le mouvement doit être relatif à la direction de la caméra"
-        let moveVector = BABYLON.Vector3.Zero();
-        
-        // Calculer la direction: Le mouvement doit être relatif à la direction de la caméra
-        // Get camera's forward direction (where it's looking) - ORAS style calculation
-        const cameraForward = this.camera.getForwardRay().direction;
-        const cameraRight = BABYLON.Vector3.Cross(cameraForward, BABYLON.Vector3.Up());
-        
-        // Normalize directions and project to horizontal plane for ORAS movement
-        const forwardDir = new BABYLON.Vector3(cameraForward.x, 0, cameraForward.z).normalize();
-        const rightDir = new BABYLON.Vector3(cameraRight.x, 0, cameraRight.z).normalize();
-        
-        // TODO Phase 3: Mapping exact selon spécifications
-        // "Quand le joueur appuie sur W (avancer), le personnage doit bouger dans la direction où la caméra regarde"
-        if (this.inputMap.forward) {
-            // W: Move in camera's forward direction (but on horizontal plane)
-            moveVector.addInPlace(forwardDir);
-            moved = true;
-        }
-        if (this.inputMap.backward) {
-            // S: Move backward relative to camera direction
-            moveVector.subtractInPlace(forwardDir);
+
+        if (this.inputMap.forward || this.inputMap.backward || this.inputMap.left || this.inputMap.right) {
             moved = true;
         }
         
-        // "Quand il appuie sur A (gauche), il doit bouger à 90 degrés à gauche de la direction de la caméra"
-        if (this.inputMap.left) {
-            // A: Move 90 degrees left of camera direction
-            moveVector.subtractInPlace(rightDir);
-            moved = true;
-        }
-        if (this.inputMap.right) {
-            // D: Move 90 degrees right of camera direction
-            moveVector.addInPlace(rightDir);
-            moved = true;
-        }
+        this.isMoving = moved;
 
-        if (moved) {
-            // Normalize diagonal movement for consistent speed
-            if (moveVector.length() > 1) {
-                moveVector.normalize();
-            }
-
-            // Apply speed modifiers
-            let currentSpeed = this.moveSpeed;
-            
-            // Running speed bonus
-            if (this.inputMap.run) {
-                currentSpeed *= 1.5; // 50% faster when running
-            }
-            
-            // Admin-specific speed adjustment for precise control
-            if (this.adminPreciseMovement) {
-                currentSpeed *= 0.8; // 20% slower for precise control
-            }
-
-            // Calculate movement with enhanced smoothness
-            const movement = moveVector.scale(currentSpeed * deltaTime);
-
-            // "Déplacer le personnage : Utilise la méthode playerMesh.moveWithCollisions(directionVector)"
-            if (this.player.moveWithCollisions && typeof this.player.moveWithCollisions === 'function') {
-                // Use Babylon.js collision system if available
-                this.player.moveWithCollisions(movement);
-            } else {
-                // Manual movement for GLB models
-                this.player.position.addInPlace(movement);
-                
-                // Enhanced boundary check to prevent going out of bounds
-                const maxDistance = 50; // Maximum distance from origin
-                if (this.player.position.length() > maxDistance) {
-                    this.player.position.normalize().scaleInPlace(maxDistance);
-                }
-            }
-
-            // "Orienter le personnage : Le modèle 3D du joueur doit pivoter pour faire face à la direction dans laquelle il se déplace"
-            if (moveVector.length() > 0) {
-                // Calculate target rotation based on movement direction
-                const targetRotation = Math.atan2(moveVector.x, moveVector.z);
-                
-                if (this.adminPreciseMovement) {
-                    // Instant rotation for admin precise control
-                    this.player.rotation.y = targetRotation;
-                } else {
-                    // Smooth rotation transition for authentic ORAS feel
-                    const currentY = this.player.rotation.y;
-                    let diff = targetRotation - currentY;
-                    
-                    // Handle rotation wrap-around (choose shortest path)
-                    if (Math.abs(diff) > Math.PI) {
-                        diff = diff - Math.sign(diff) * 2 * Math.PI;
-                    }
-                    
-                    // Apply smooth rotation with ORAS-appropriate speed
-                    const rotationSpeedMultiplier = 4.0; // Quick but smooth rotation
-                    this.player.rotation.y += diff * rotationSpeedMultiplier * deltaTime;
-                }
-            }
-
-            this.isMoving = true;
-        } else {
-            // Stop moving
-            this.isMoving = false;
-        }
-
-        // Update animation state with enhanced transitions (Phase 3: Gérer les animations de mouvement)
+        // Update animation state based on input
         this.updateAnimationState();
     }
 
@@ -483,41 +386,39 @@ class PlayerController {
     }
 
     checkPositionChange() {
-        // Check if player position or rotation changed significantly
-        const positionThreshold = 0.1;
-        const rotationThreshold = 0.1;
-        
-        const positionChanged = BABYLON.Vector3.Distance(this.player.position, this.lastPosition) > positionThreshold;
-        const rotationChanged = Math.abs(this.player.rotation.y - this.lastRotation.y) > rotationThreshold;
-        
-        if (positionChanged || rotationChanged) {
-            // Send position update to server
-            this.sendPositionUpdate();
-            
-            // Update last known position/rotation
-            this.lastPosition = this.player.position.clone();
-            this.lastRotation = this.player.rotation.clone();
-        }
+        // This function is now used to send input state to the server
+        // It's called in the movement loop
+        this.sendPositionUpdate();
     }
 
     sendPositionUpdate() {
         if (this.socket && this.socket.connected) {
-            const positionData = {
-                position: {
-                    x: this.player.position.x,
-                    y: this.player.position.y,
-                    z: this.player.position.z
-                },
-                rotation: {
-                    x: this.player.rotation.x,
-                    y: this.player.rotation.y,
-                    z: this.player.rotation.z
-                },
-                isMoving: this.isMoving,
-                isRunning: this.inputMap.run || false
-            };
-            
-            this.socket.emit('player_move', positionData);
+            this.socket.emit('player_move', this.inputMap);
+        }
+    }
+
+    applyServerPosition(data) {
+        // Apply the authoritative position from the server
+        // Here you can add interpolation for smooth movement
+        const targetPosition = new BABYLON.Vector3(data.position.x, data.position.y, data.position.z);
+
+        // Simple lerp for smoothing
+        this.player.position = BABYLON.Vector3.Lerp(this.player.position, targetPosition, 0.1);
+
+        if (data.rotation) {
+            // In a more advanced implementation, you would slerp the rotation
+            this.player.rotation.y = data.rotation.y;
+        }
+
+        // Update animation based on server state
+        if (data.isMoving) {
+            if (data.isRunning) {
+                this.gameManager.setPlayerAnimation('run');
+            } else {
+                this.gameManager.setPlayerAnimation('walk');
+            }
+        } else {
+            this.gameManager.setPlayerAnimation('idle');
         }
     }
 

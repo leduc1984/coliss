@@ -352,7 +352,13 @@ class GameManager {
             
             // Player movement events
             this.socket.on('player_moved', (data) => {
-                this.updateOtherPlayer(data);
+                if (data.userId === this.user.id) {
+                    if (this.playerController) {
+                        this.playerController.applyServerPosition(data);
+                    }
+                } else {
+                    this.updateOtherPlayer(data);
+                }
             });
             
             this.socket.on('player_joined', (data) => {

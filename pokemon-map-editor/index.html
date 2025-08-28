@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokemon ORAX Map Editor - Professional Game Development Tool</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="professional-editor.css">
+    <link rel="stylesheet" href="extended-editor.css">
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+</head>
+<body>
+    <div id="top-bar">
+        <input type="file" id="fileInput" accept=".glb" style="display: none;">
+        <button id="loadMainMapBtn">Charger Carte (.glb)</button>
+        <input type="file" id="collisionFileInput" accept=".glb" style="display: none;">
+        <button id="loadCollisionBtn">Charger Collisions (.glb)</button>
+        <button id="exportBtn">Exporter Données (.json)</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+        <button id="importBtn">Importer Données (.json)</button>
+        <button id="testModeBtn">Mode Test</button>
+        <div class="separator"></div>
+        <button id="toggleGridBtn">Grille ON/OFF</button>
+        <button id="toggleCollisionBtn" class="active">Collisions ON</button>
+        <div class="separator"></div>
+        <button id="selectToolBtn" class="tool-btn active">Sélectionner</button>
+        <button id="multiSelectBtn" class="tool-btn">Sélection Multiple</button>
+        <button id="pokemonZoneBtn" class="tool-btn">Zone Pokémon</button>
+        <button id="npcPlaceBtn" class="tool-btn">Placer PNJ</button>
+        <button id="warpPointBtn" class="tool-btn">Point de Téléportation</button>
+        <div class="separator"></div>
+        <button id="prefabBtn" class="tool-btn">Préfabriqués</button>
+        <button id="eventEditorBtn" class="tool-btn">Événements</button>
+        <button id="measureToolBtn" class="tool-btn">Mesurer</button>
+    </div>
+
+    <div id="editor-container">
+        <div id="left-panel" class="panel">
+            <div id="selectToolPanel" class="tool-panel">
+                <h3>Object Properties</h3>
+                <div id="propertiesPanelContent">Select an object to view its properties.</div>
+            </div>
+            
+            <!-- Map Objects Library -->
+            <div id="mapObjectsPanel" class="tool-panel">
+                <h3>Map Objects Library</h3>
+                <div class="object-categories">
+                    <div class="object-category">
+                        <h4>🏠 Buildings</h4>
+                        <div class="object-grid" id="buildingsGrid">
+                            <div class="object-item" data-object="house.glb">
+                                <div class="object-thumbnail">🏠</div>
+                                <div class="object-name">House</div>
+                            </div>
+                            <div class="object-item" data-object="pokecenter.glb">
+                                <div class="object-thumbnail">🏥</div>
+                                <div class="object-name">Pokemon Center</div>
+                            </div>
+                            <div class="object-item" data-object="mart.glb">
+                                <div class="object-thumbnail">🏪</div>
+                                <div class="object-name">Poke Mart</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="object-category">
+                        <h4>🌳 Nature</h4>
+                        <div class="object-grid" id="natureGrid">
+                            <div class="object-item" data-object="tree.glb">
+                                <div class="object-thumbnail">🌳</div>
+                                <div class="object-name">Tree</div>
+                            </div>
+                            <div class="object-item" data-object="rock.glb">
+                                <div class="object-thumbnail">🗿</div>
+                                <div class="object-name">Rock</div>
+                            </div>
+                            <div class="object-item" data-object="flower.glb">
+                                <div class="object-thumbnail">🌸</div>
+                                <div class="object-name">Flower</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="object-category">
+                        <h4>🎮 Interactive</h4>
+                        <div class="object-grid" id="interactiveGrid">
+                            <div class="object-item" data-object="sign.glb">
+                                <div class="object-thumbnail">🪧</div>
+                                <div class="object-name">Sign</div>
+                            </div>
+                            <div class="object-item" data-object="door.glb">
+                                <div class="object-thumbnail">🚪</div>
+                                <div class="object-name">Door</div>
+                            </div>
+                            <div class="object-item" data-object="chest.glb">
+                                <div class="object-thumbnail">📦</div>
+                                <div class="object-name">Treasure</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="pokemonZonePanel" class="tool-panel" style="display: none;">
+                <h3>Pokemon Zone Editor</h3>
+                <label>Zone Type:</label>
+                <select id="zoneType"><option value="grass">Grass</option><option value="water">Water</option></select>
+                <button id="paintZoneBtn">Paint Zone</button>
+                <hr>
+                <h4>Encounters for selected zone</h4>
+                <div id="encounterEditor">
+                    <select id="pokemonSelect"></select>
+                    <button id="openSpriteSelector">...</button>
+                    <input type="number" id="minLevel" value="5" title="Min Level">
+                    <input type="number" id="maxLevel" value="10" title="Max Level">
+                    <input type="number" id="encounterRate" value="10" title="Rate (%)">
+                    <button id="addEncounterBtn">+</button>
+                    <div id="encounterList"></div>
+                </div>
+            </div>
+            
+            <!-- Prefab Panel -->
+            <div id="prefabPanel" class="tool-panel" style="display: none;">
+                <h3>Bibliothèque de Préfabriqués</h3>
+                <div class="prefab-controls">
+                    <button id="createPrefabBtn">Créer Préfabriqué</button>
+                    <button id="importPrefabBtn">Importer</button>
+                    <button id="exportPrefabBtn">Exporter</button>
+                </div>
+                <div class="prefab-search">
+                    <input type="text" id="prefabSearch" placeholder="Rechercher préfabriqués...">
+                    <select id="prefabCategory">
+                        <option value="">Toutes catégories</option>
+                        <option value="buildings">Bâtiments</option>
+                        <option value="nature">Nature</option>
+                        <option value="pokemon">Pokémon</option>
+                        <option value="custom">Personnalisé</option>
+                    </select>
+                </div>
+                <div id="prefabGrid" class="prefab-grid">
+                    <!-- Les préfabriqués seront ajoutés ici dynamiquement -->
+                </div>
+            </div>
+            
+            <!-- Multi-Selection Panel -->
+            <div id="multiSelectPanel" class="tool-panel" style="display: none;">
+                <h3>Sélection Multiple</h3>
+                <div class="selection-info">
+                    <p id="selectionCount">0 objets sélectionnés</p>
+                </div>
+                <div class="selection-controls">
+                    <button id="groupSelectedBtn">Grouper (Ctrl+G)</button>
+                    <button id="ungroupSelectedBtn">Dégrouper (Ctrl+U)</button>
+                    <button id="copySelectedBtn">Copier (Ctrl+C)</button>
+                    <button id="pasteBtn">Coller (Ctrl+V)</button>
+                    <button id="duplicateSelectedBtn">Dupliquer (Ctrl+D)</button>
+                    <button id="deleteSelectedBtn">Supprimer (Del)</button>
+                </div>
+                <div class="selection-transform">
+                    <h4>Transformation Groupe</h4>
+                    <label>Position X: <input type="number" id="groupPosX" step="0.1"></label>
+                    <label>Position Y: <input type="number" id="groupPosY" step="0.1"></label>
+                    <label>Position Z: <input type="number" id="groupPosZ" step="0.1"></label>
+                    <label>Rotation Y: <input type="number" id="groupRotY" step="1" min="0" max="360"></label>
+                    <label>Échelle: <input type="number" id="groupScale" step="0.1" min="0.1" value="1"></label>
+                </div>
+            </div>
+            
+            <!-- Measure Tool Panel -->
+            <div id="measurePanel" class="tool-panel" style="display: none;">
+                <h3>Outil de Mesure</h3>
+                <div class="measure-controls">
+                    <button id="startMeasureBtn">Commencer Mesure</button>
+                    <button id="clearMeasuresBtn">Effacer Mesures</button>
+                </div>
+                <div id="measureResults">
+                    <h4>Résultats:</h4>
+                    <div id="measureList">
+                        <!-- Les mesures apparaitra ici -->
+                    </div>
+                </div>
+                <div class="measure-settings">
+                    <h4>Unités:</h4>
+                    <select id="measureUnit">
+                        <option value="meters">Mètres</option>
+                        <option value="tiles">Tuiles</option>
+                        <option value="units">Unités</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Collision Properties Panel -->
+            <div id="collisionPanel" class="tool-panel" style="display: none;">
+                <h3>Propriétés de Collision</h3>
+                <div class="collision-controls">
+                    <label>Type de Collision:</label>
+                    <select id="collisionTypeSelect">
+                        <option value="blocked">Bloqué</option>
+                        <option value="trigger">Déclencheur</option>
+                        <option value="interactable">Interactif</option>
+                    </select>
+                    <button id="applyCollisionTypeBtn">Appliquer</button>
+                    <hr>
+                    <button id="addCollisionBtn">Ajouter comme Collision</button>
+                    <button id="removeCollisionBtn">Retirer Collision</button>
+                    <button id="duplicateCollisionBtn">Dupliquer Collision</button>
+                    
+                    <!-- Advanced Collision Properties -->
+                    <div id="collisionPropertiesPanel" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
+                        <h4>Propriétés Avancées</h4>
+                        <label>Type de Déclencheur:</label>
+                        <select id="collisionTriggerType">
+                            <option value="teleport">Téléportation</option>
+                            <option value="event">Événement</option>
+                            <option value="encounter">Rencontre Pokémon</option>
+                        </select>
+                        
+                        <label>Carte de Destination:</label>
+                        <input type="text" id="collisionDestinationMap" placeholder="Nom de la carte" style="width: 100%; margin: 5px 0; padding: 5px;">
+                        
+                        <label>Position de Destination:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="collisionDestinationX" placeholder="X" style="flex: 1; padding: 5px;" step="0.1">
+                            <input type="number" id="collisionDestinationZ" placeholder="Z" style="flex: 1; padding: 5px;" step="0.1">
+                        </div>
+                        
+                        <button id="saveCollisionPropertiesBtn" style="margin-top: 10px; width: 100%;">Sauvegarder Propriétés</button>
+                    </div>
+                    
+                    <!-- Collision Creation Tools -->
+                    <div id="collisionCreationPanel" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
+                        <h4>Outils de Création</h4>
+                        <button id="createCollisionVolumeBtn" style="width: 100%; margin-bottom: 5px;">Créer Volume de Collision</button>
+                        <button id="createTriggerVolumeBtn" style="width: 100%; margin-bottom: 5px;">Créer Volume de Déclenchement</button>
+                        <button id="paintCollisionBtn" style="width: 100%;">Peindre les Collisions</button>
+                        
+                        <div style="margin-top: 10px;">
+                            <label>Type de Collision à Créer:</label>
+                            <select id="creationCollisionType" style="width: 100%; margin: 5px 0; padding: 5px;">
+                                <option value="blocked">Bloqué</option>
+                                <option value="trigger">Déclencheur</option>
+                                <option value="interactable">Interactif</option>
+                            </select>
+                            
+                            <label>Type de Déclencheur à Créer:</label>
+                            <select id="creationTriggerType" style="width: 100%; margin: 5px 0; padding: 5px;">
+                                <option value="teleport">Téléportation</option>
+                                <option value="event">Événement</option>
+                                <option value="encounter">Rencontre Pokémon</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Batch Compression Tools -->
+                    <div id="batchCompressionPanel" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
+                        <h4>Outils de Compression</h4>
+                        <label>Qualité de Compression:</label>
+                        <select id="compressionQuality" style="width: 100%; margin: 5px 0; padding: 5px;">
+                            <option value="low">Basse (Taille +, Qualité -)</option>
+                            <option value="medium" selected>Moyenne (Équilibré)</option>
+                            <option value="high">Haute (Taille -, Qualité +)</option>
+                        </select>
+                        
+                        <button id="batchCompressBtn" style="width: 100%; margin-top: 10px; background: #4caf50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">
+                            🔧 Compresser les Actifs
+                        </button>
+                        
+                        <div style="margin-top: 10px; font-size: 12px; color: #aaa;">
+                            <p>💡 La compression Draco réduit la taille des fichiers GLB jusqu'à 80%</p>
+                            <p>🚀 Améliore les temps de chargement et la performance</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="splitter" id="left-splitter"></div>
+        <canvas id="renderCanvas"></canvas>
+        <div class="splitter" id="right-splitter"></div>
+        <div id="right-panel" class="panel">
+            <h3>Inspecteur de Scène</h3>
+            <input type="text" id="meshSearch" placeholder="Rechercher...">
+            <div id="meshPanel"></div>
+        </div>
+    </div>
+
+    <div id="spriteSelectorModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Choisir un Pokémon</h3>
+                <button id="closeSpriteSelector">&times;</button>
+            </div>
+            <div id="spriteGridContainer"></div>
+        </div>
+    </div>
+
+    <script src="pokemon-data.js"></script>
+    <script src="pokemon-sprites.js"></script>
+    <script src="utils.js"></script>
+    <script src="GridSystem.js"></script>
+    <script src="SelectionManager.js"></script>
+    <script src="PrefabManager.js"></script>
+    <script src="EventEditor.js"></script>
+    <script src="PokemonToolsExtended.js"></script>
+    <script src="AdvancedEditorIntegration.js"></script>
+    <script src="editor.js"></script>
+</body>
+</html>

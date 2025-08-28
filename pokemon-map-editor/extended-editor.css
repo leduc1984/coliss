@@ -1,0 +1,512 @@
+/* ===================================
+   Extensions CSS pour l'Éditeur de Cartes Pokémon
+   Styles pour les nouvelles fonctionnalités
+   =================================== */
+
+/* Nouvelles variables CSS */
+:root {
+  --selection-color: #4CAF50;
+  --group-color: #2196F3;
+  --prefab-color: #FF9800;
+  --measure-color: #9C27B0;
+  --event-color: #F44336;
+}
+
+/* Styles pour les panels étendus */
+.prefab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--editor-elevated);
+  border-radius: var(--editor-radius);
+  margin-top: 10px;
+}
+
+.prefab-item {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.prefab-item:hover {
+  background: var(--editor-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--editor-shadow);
+}
+
+.prefab-thumbnail {
+  width: 60px;
+  height: 60px;
+  background: var(--editor-bg);
+  border-radius: var(--editor-radius);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.prefab-thumbnail img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--editor-radius);
+}
+
+.prefab-name {
+  font-size: 10px;
+  color: var(--editor-text);
+  word-wrap: break-word;
+}
+
+/* Styles pour la sélection multiple */
+.selection-info {
+  background: var(--editor-elevated);
+  padding: var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  margin-bottom: var(--editor-space-md);
+  text-align: center;
+}
+
+.selection-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--editor-space-sm);
+  margin-bottom: var(--editor-space-md);
+}
+
+.selection-controls button {
+  background: var(--selection-color);
+  color: white;
+  border: none;
+  padding: var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.selection-controls button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--editor-shadow);
+}
+
+.selection-transform {
+  background: var(--editor-elevated);
+  padding: var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  margin-top: var(--editor-space-md);
+}
+
+.selection-transform h4 {
+  margin: 0 0 var(--editor-space-sm) 0;
+  color: var(--editor-text);
+  font-size: 12px;
+}
+
+.selection-transform label {
+  display: block;
+  margin-bottom: var(--editor-space-sm);
+  font-size: 11px;
+  color: var(--editor-text-muted);
+}
+
+.selection-transform input {
+  width: 60px;
+  margin-left: var(--editor-space-sm);
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: 2px 4px;
+  color: var(--editor-text);
+}
+
+/* Styles pour l'outil de mesure */
+.measure-controls {
+  display: flex;
+  gap: var(--editor-space-sm);
+  margin-bottom: var(--editor-space-md);
+}
+
+.measure-controls button {
+  flex: 1;
+  background: var(--measure-color);
+  color: white;
+  border: none;
+  padding: var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.measure-controls button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+#measureResults {
+  background: var(--editor-elevated);
+  padding: var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  margin-bottom: var(--editor-space-md);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#measureResults h4 {
+  margin: 0 0 var(--editor-space-sm) 0;
+  color: var(--editor-text);
+  font-size: 12px;
+}
+
+.measure-item {
+  background: var(--editor-surface);
+  padding: var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  margin-bottom: var(--editor-space-sm);
+  font-size: 11px;
+  color: var(--editor-text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.measure-distance {
+  font-weight: bold;
+  color: var(--measure-color);
+}
+
+.measure-settings select {
+  width: 100%;
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: var(--editor-space-sm);
+  color: var(--editor-text);
+  font-size: 11px;
+}
+
+/* Styles pour les préfabriqués */
+.prefab-controls {
+  display: flex;
+  gap: var(--editor-space-sm);
+  margin-bottom: var(--editor-space-md);
+}
+
+.prefab-controls button {
+  flex: 1;
+  background: var(--prefab-color);
+  color: white;
+  border: none;
+  padding: var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.15s ease;
+}
+
+.prefab-controls button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.prefab-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--editor-space-sm);
+  margin-bottom: var(--editor-space-md);
+}
+
+.prefab-search input,
+.prefab-search select {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: var(--editor-space-sm);
+  color: var(--editor-text);
+  font-size: 11px;
+}
+
+.prefab-search input::placeholder {
+  color: var(--editor-text-secondary);
+}
+
+/* Styles pour l'éditeur d'événements */
+.event-editor-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 2000;
+  display: none;
+}
+
+#event-canvas {
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+  cursor: crosshair;
+}
+
+.event-toolbar {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: var(--editor-space-md);
+  z-index: 2001;
+}
+
+.event-toolbar h3 {
+  margin: 0 0 var(--editor-space-sm) 0;
+  color: var(--editor-text);
+  font-size: 14px;
+}
+
+.node-type-button {
+  display: block;
+  width: 120px;
+  margin-bottom: var(--editor-space-sm);
+  padding: var(--editor-space-sm);
+  border: none;
+  border-radius: var(--editor-radius);
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+
+.node-type-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Styles pour les boutons d'outils étendus */
+.tool-btn {
+  background: var(--editor-secondary);
+  color: var(--editor-text);
+  border: 1px solid var(--editor-border);
+  padding: var(--editor-space-sm) var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  margin-right: var(--editor-space-sm);
+}
+
+.tool-btn:hover {
+  background: var(--editor-primary);
+  transform: translateY(-1px);
+}
+
+.tool-btn.active {
+  background: var(--editor-primary);
+  color: white;
+  box-shadow: var(--editor-shadow);
+}
+
+/* Styles pour la grille avancée */
+.grid-controls {
+  background: var(--editor-elevated);
+  padding: var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  margin-bottom: var(--editor-space-md);
+}
+
+.grid-controls h4 {
+  margin: 0 0 var(--editor-space-sm) 0;
+  color: var(--editor-text);
+  font-size: 12px;
+}
+
+.grid-size-control {
+  display: flex;
+  align-items: center;
+  gap: var(--editor-space-sm);
+  margin-bottom: var(--editor-space-sm);
+}
+
+.grid-size-control label {
+  font-size: 11px;
+  color: var(--editor-text-muted);
+}
+
+.grid-size-control input {
+  width: 60px;
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: 2px 4px;
+  color: var(--editor-text);
+}
+
+.snap-toggles {
+  display: flex;
+  gap: var(--editor-space-sm);
+  margin-top: var(--editor-space-sm);
+}
+
+.snap-toggle {
+  flex: 1;
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: var(--editor-space-sm);
+  cursor: pointer;
+  font-size: 10px;
+  text-align: center;
+  transition: all 0.15s ease;
+  color: var(--editor-text-muted);
+}
+
+.snap-toggle.active {
+  background: var(--selection-color);
+  color: white;
+  border-color: var(--selection-color);
+}
+
+.snap-toggle:hover {
+  opacity: 0.9;
+}
+
+/* Styles pour les indicateurs de statut */
+.status-indicators {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  gap: var(--editor-space-sm);
+  z-index: 1000;
+}
+
+.status-indicator {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  padding: var(--editor-space-sm);
+  font-size: 10px;
+  color: var(--editor-text-muted);
+  min-width: 60px;
+  text-align: center;
+}
+
+.status-indicator.active {
+  background: var(--selection-color);
+  color: white;
+  border-color: var(--selection-color);
+}
+
+/* Animations pour les interactions */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.prefab-item:active,
+.tool-btn:active,
+.selection-controls button:active {
+  animation: pulse 0.1s ease;
+}
+
+/* Styles responsifs */
+@media (max-width: 1200px) {
+  .prefab-grid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  }
+  
+  .selection-controls {
+    grid-template-columns: 1fr;
+  }
+  
+  .prefab-controls,
+  .measure-controls {
+    flex-direction: column;
+  }
+}
+
+/* Styles pour les tooltips */
+.tooltip {
+  position: absolute;
+  background: var(--editor-bg);
+  color: var(--editor-text);
+  padding: var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  font-size: 10px;
+  z-index: 3000;
+  pointer-events: none;
+  border: 1px solid var(--editor-border);
+  box-shadow: var(--editor-shadow);
+}
+
+/* Styles pour les modales */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius-lg);
+  padding: var(--editor-space-xl);
+  max-width: 500px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: var(--editor-shadow-lg);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--editor-space-md);
+  padding-bottom: var(--editor-space-sm);
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--editor-text);
+  font-size: 16px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--editor-text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--editor-radius);
+  transition: all 0.15s ease;
+}
+
+.modal-close:hover {
+  background: var(--editor-error);
+  color: white;
+}

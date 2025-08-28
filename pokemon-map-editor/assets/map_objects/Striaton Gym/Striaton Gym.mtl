@@ -1,0 +1,40 @@
+newmtl kage
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka kage.png
+map_Kd kage.png
+map_d kage.png
+newmtl mado
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka mado.png
+map_Kd mado.png
+map_d mado.png
+newmtl rst1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka rst1.png
+map_Kd rst1.png
+map_d rst1.png
+newmtl rst2
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka rst2.png
+map_Kd rst2.png
+map_d rst2.png
+newmtl rst3
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka rst3.png
+map_Kd rst3.png
+map_d rst3.png

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon MMO - Create Admin Account</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #5a6fd8; }
+        .message { margin-top: 15px; padding: 10px; border-radius: 5px; text-align: center; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎮 Create Admin Account - leduc</h2>
+        <p>Create your admin account to access the Pokemon MMO system.</p>
+        
+        <form id="adminForm">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" value="leduc" readonly>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="leducgagnetommy@gmail.com" readonly>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter a strong password (8+ chars, 1 upper, 1 lower, 1 digit, 1 special)" autocomplete="new-password">
+                <small style="color: #666;">Must include: uppercase, lowercase, number, special character</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password:</label>
+                <input type="password" id="confirmPassword" placeholder="Confirm your password" autocomplete="new-password">
+            </div>
+            
+            <button type="submit">Create Admin Account</button>
+        </form>
+        
+        <div id="message"></div>
+        
+        <p style="margin-top: 20px; text-align: center;">
+            <a href="/" style="color: #667eea;">← Back to Game</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('adminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const messageDiv = document.getElementById('message');
+            
+            // Validation
+            if (password !== confirmPassword) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Passwords do not match';
+                return;
+            }
+            
+            if (password.length < 8) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Password must be at least 8 characters';
+                return;
+            }
+            
+            // Check password requirements
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasDigit = /[0-9]/.test(password);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            
+            if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Password must contain uppercase, lowercase, digit, and special character';
+                return;
+            }
+            
+            try {
+                messageDiv.className = 'message';
+                messageDiv.textContent = 'Creating admin account...';
+                
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'leduc',
+                        email: 'leducgagnetommy@gmail.com',
+                        password: password,
+                        confirmPassword: confirmPassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = '✅ Admin account created successfully!';
+                    
+                    // Store token and redirect
+                    localStorage.setItem('pokemon_mmo_token', result.token);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = result.message || 'Registration failed';
+                }
+            } catch (error) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Connection failed. Please try again.';
+                console.error('Registration error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

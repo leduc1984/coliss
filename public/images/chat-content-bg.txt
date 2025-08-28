@@ -1,0 +1,2 @@
+This is a placeholder for the chat content background image.
+In a real implementation, this would be a PNG or JPG file with the appropriate background design.

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon ORAX - Professional MMO Experience</title>
+    
+    <!-- Professional UI Design System -->
+    <link rel="stylesheet" href="styles/pokemon-orax-ui.css">
+    <link rel="stylesheet" href="styles/pokemon-orax-chat.css">
+    <link rel="stylesheet" href="styles/pokemon-orax-chat-xml.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="css/debug.css">
+    <link rel="stylesheet" href="css/admin-map-selector.css">
+    <link rel="stylesheet" href="css/battle.css">
+    
+    <!-- Babylon.js and Dependencies -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- CANNON.js Physics Engine with Multiple CDN Fallbacks -->
+    <script>
+        (function() {
+            const cannonUrls = [
+                'https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js', // Working version
+                'https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js', // Alternate version
+                'https://unpkg.com/cannon@0.6.2/build/cannon.min.js' // Alternate version
+            ];
+            
+            let cannonLoaded = false;
+            let currentUrlIndex = 0;
+            
+            function loadCannonJS() {
+                if (currentUrlIndex >= cannonUrls.length) {
+                    console.warn('⚠️ CANNON.js failed to load from all CDNs, physics disabled');
+                    // Show user notification
+                    showPhysicsDisabledNotification();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = cannonUrls[currentUrlIndex];
+                
+                script.onload = function() {
+                    cannonLoaded = true;
+                    console.log('✅ CANNON.js loaded successfully from:', cannonUrls[currentUrlIndex]);
+                    // Hide any previous notifications
+                    hidePhysicsNotification();
+                };
+                
+                script.onerror = function() {
+                    console.warn('❌ Failed to load CANNON.js from:', cannonUrls[currentUrlIndex]);
+                    currentUrlIndex++;
+                    loadCannonJS();
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            function showPhysicsDisabledNotification() {
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.id = 'physics-disabled-notification';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255, 165, 0, 0.9);
+                    color: white;
+                    padding: 16px;
+                    border-radius: 8px;
+                    z-index: 9999;
+                    max-width: 300px;
+                    font-family: 'Inter', sans-serif;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                `;
+                notification.innerHTML = `
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px;">⚠️ Physics Disabled</h4>
+                    <p style="margin: 0; font-size: 12px; line-height: 1.4;">
+                        CANNON.js physics engine failed to load. The game will use basic collision detection instead.
+                    </p>
+                `;
+                document.body.appendChild(notification);
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 10000);
+            }
+            
+            function hidePhysicsNotification() {
+                const notification = document.getElementById('physics-disabled-notification');
+                if (notification && notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }
+            
+            loadCannonJS();
+        })();
+    </script>
+    
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    
+    <!-- Professional Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login/Register Screen -->
+    <div id="auth-screen" class="screen active">
+        <div class="auth-container">
+            <div class="game-logo">
+                <h1>Pokemon MMO</h1>
+                <h2>Omega Ruby Style</h2>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form active">
+                <h3>Welcome Back, Trainer!</h3>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="loginInput">Username or Email</label>
+                        <input type="text" id="loginInput" name="login" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Start Adventure</button>
+                </form>
+                <p class="auth-switch">
+                    New trainer? <a href="#" id="showRegister">Create Account</a>
+                </p>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="register-form" class="auth-form">
+                <h3>Begin Your Pokemon Journey!</h3>
+                <form id="registerForm">
+                    <div class="input-group">
+                        <label for="regUsername">Trainer Name</label>
+                        <input type="text" id="regUsername" name="username" required>
+                        <small>3-50 characters, letters, numbers, and underscores only</small>
+                    </div>
+                    <div class="input-group">
+                        <label for="regEmail">Email</label>
+                        <input type="email" id="regEmail" name="email" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="regPassword">Password</label>
+                        <input type="password" id="regPassword" name="password" autocomplete="new-password" required>
+                        <small>8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special character</small>
+                    </div>
+                    <div class="input-group">
+                        <label for="regConfirmPassword">Confirm Password</label>
+                        <input type="password" id="regConfirmPassword" name="confirmPassword" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Trainer</button>
+                </form>
+                <p class="auth-switch">
+                    Already a trainer? <a href="#" id="showLogin">Sign In</a>
+                </p>
+            </div>
+            
+            <div id="auth-message" class="message"></div>
+        </div>
+    </div>
+    
+    <!-- Game Screen with Professional ORAX Layout -->
+    <div id="game-screen" class="screen">
+        <div class="pokemon-orax-container">
+            <!-- Professional Top Navigation -->
+            <nav class="pokemon-orax-navbar">
+                <a href="#" class="pokemon-orax-navbar__brand">
+                    Pokemon ORAX
+                </a>
+                
+                <div class="pokemon-orax-navbar__center">
+                    <div class="pokemon-card" style="padding: var(--space-2) var(--space-4); margin: 0;">
+                        <span id="currentMap" style="font-weight: 600; color: var(--primary);">Loading...</span>
+                    </div>
+                </div>
+                
+                <div class="pokemon-orax-navbar__actions">
+                    <div class="pokemon-orax-navbar__user">
+                        <div class="pokemon-orax-navbar__avatar" id="playerAvatar">T</div>
+                        <div>
+                            <div id="playerName" style="font-weight: 600; font-size: var(--text-sm);">Trainer Name</div>
+                            <div id="playerRole" class="pokemon-orax-navbar__role pokemon-orax-navbar__role--user">user</div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-controls" id="adminControls" style="display: none;">
+                        <button id="mapEditorBtn" class="pokemon-btn pokemon-btn--secondary pokemon-btn--sm">
+                            🗺️ Map Editor
+                        </button>
+                    </div>
+                    
+                    <button id="logoutBtn" class="pokemon-btn pokemon-btn--secondary pokemon-btn--sm">
+                        ↗️ Logout
+                    </button>
+                </div>
+            </nav>
+            
+            <!-- Main Content Area -->
+            <div class="pokemon-orax-content">
+                <!-- 3D Game Area (Full Screen) -->
+                <div class="pokemon-orax-game-area" style="position: relative; width: 100%; height: 100vh;">
+                    <canvas id="gameCanvas"></canvas>
+                    
+                    <!-- Game Overlays -->
+                    <div id="controls-info" style="position: absolute; bottom: 20px; left: 20px; color: white; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; z-index: 5;">
+                        <div class="control-hint">Use WASD or Arrow Keys to move • Hold Shift to run</div>
+                        <div class="online-count">Players online: <span id="onlineCount">1</span></div>
+                    </div>
+                    
+                    <!-- Battle Container -->
+                    <div id="battle-container" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;"></div>
+
+                    <!-- Debug Overlay -->
+                    <div id="debug-overlay" class="debug-overlay" style="position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); color: white; padding: 16px; border-radius: 8px; font-family: monospace; display: none; z-index: 5;">
+                        <h4 style="margin: 0 0 12px 0; color: #ffeb3b;">🔍 Debug Info</h4>
+                        <div class="debug-info" style="margin-bottom: 8px;">Position: <span id="debug-position">0, 0, 0</span></div>
+                        <div class="debug-info" style="margin-bottom: 8px;">Rotation: <span id="debug-rotation">0°</span></div>
+                        <div class="debug-info" style="margin-bottom: 8px;">Camera: <span id="debug-camera">α: 0, β: 0, r: 0</span></div>
+                        <div class="debug-info" style="margin-bottom: 12px;">Moving: <span id="debug-moving">No</span></div>
+                        <div class="debug-controls" style="font-size: 12px; color: #ccc;">
+                            Press P for debug info<br>
+                            Press F1 to toggle this overlay
+                        </div>
+                    </div>
+                    
+                    <!-- Movement Indicator -->
+                    <div id="movement-indicator" class="movement-indicator" style="position: absolute; bottom: 20px; right: 400px; z-index: 5;">
+                        <div class="movement-cross">
+                            <div class="movement-arrow up" id="arrow-up"></div>
+                            <div class="movement-arrow down" id="arrow-down"></div>
+                            <div class="movement-arrow left" id="arrow-left"></div>
+                            <div class="movement-arrow right" id="arrow-right"></div>
+                            <div class="movement-center" id="movement-center"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- XML-Based Chat Panel -->
+                    <div class="chatframe" id="chat-panel">
+                        <!-- Chat Header with Tabs -->
+                        <div class="chatframe-top" id="chat-header">
+                            <div class="chat-tabs" id="chat-tabs">
+                                <button class="chat-tab-button togglebutton-normal togglebutton-normal--active" data-channel="global">
+                                    <span class="chat-tab-icon">🌍</span>
+                                    <span>Global</span>
+                                </button>
+                                <button class="chat-tab-button togglebutton-normal" data-channel="english">
+                                    <span class="chat-tab-icon">🇬🇧</span>
+                                    <span>English</span>
+                                </button>
+                                <button class="chat-tab-button togglebutton-add" id="add-tab-button">
+                                    <span class="chat-tab-icon">+</span>
+                                </button>
+                                <button class="chat-tab-button togglebutton-remove" id="remove-tab-button" style="display: none;">
+                                    <span class="chat-tab-icon">-</span>
+                                </button>
+                                <button class="chat-tab-button togglebutton-settings" id="settings-button">
+                                    <span class="chat-tab-icon">⚙️</span>
+                                </button>
+                            </div>
+                            <button class="hideButton" id="toggleChat">−</button>
+                        </div>
+                        
+                        <!-- Chat Content Container -->
+                        <div class="chatframe-content" id="chat-content">
+                            <!-- Chat Messages Scroll Pane -->
+                            <div class="chat-scrollpane" id="chat-messages">
+                                <!-- Messages will be dynamically added here -->
+                            </div>
+                            
+                            <!-- Chat Input Area -->
+                            <div class="chatframe-bottom">
+                                <div class="chat-input-container">
+                                    <div class="chat-input-wrapper">
+                                        <textarea class="editfield" id="chatInput" 
+                                                 placeholder="Type message or /help for commands..."
+                                                 rows="1"></textarea>
+                                    </div>
+                                    <button class="chat-send-button button" id="sendChat">➤</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Integrated Map Editor Screen -->
+    <div id="editor-screen" class="screen">
+        <div id="integrated-map-editor" style="width: 100%; height: 100%; position: relative;">
+            <!-- Map Editor Header -->
+            <div id="editor-header" style="position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; align-items: center; padding: 0 20px; border-bottom: 2px solid #007acc;">
+                <h2 style="color: #fff; margin: 0; flex-grow: 1;">🗺️ Pokemon Map Editor</h2>
+                <button id="closeIntegratedEditor" class="pokemon-btn pokemon-btn--secondary pokemon-btn--sm" style="background: #ff6b6b; border: none; color: white;">
+                    ✕ Close Editor
+                </button>
+            </div>
+            
+            <!-- Map Editor Content -->
+            <div id="editor-content" style="position: absolute; top: 60px; left: 0; right: 0; bottom: 0; background: #1a1a1a;">
+                <!-- Babylon.js Canvas for Map Editor -->
+                <canvas id="editorCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                
+                <!-- Editor Tools Panel -->
+                <div id="editor-tools" style="position: absolute; top: 20px; left: 20px; width: 300px; background: rgba(0,0,0,0.8); border-radius: 8px; padding: 20px; max-height: calc(100% - 40px); overflow-y: auto;">
+                    <h3 style="color: #fff; margin-top: 0;">🛠️ Editor Tools</h3>
+                    
+                    <!-- File Operations -->
+                    <div class="tool-section" style="margin-bottom: 20px;">
+                        <h4 style="color: #007acc; margin-bottom: 10px;">📁 File Operations</h4>
+                        <input type="file" id="editorFileInput" accept=".glb" style="display: none;">
+                        <button id="loadMapBtn" class="editor-btn" style="display: block; width: 100%; margin-bottom: 8px; padding: 8px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer;">Load Map (.glb)</button>
+                        <button id="saveMapBtn" class="editor-btn" style="display: block; width: 100%; margin-bottom: 8px; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Map</button>
+                        <button id="exportMapBtn" class="editor-btn" style="display: block; width: 100%; padding: 8px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">Export (.json)</button>
+                    </div>
+                    
+                    <!-- Map Tools -->
+                    <div class="tool-section" style="margin-bottom: 20px;">
+                        <h4 style="color: #007acc; margin-bottom: 10px;">🎮 Map Tools</h4>
+                        <button id="placementToolBtn" class="editor-btn active" style="display: block; width: 100%; margin-bottom: 8px; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Placement Tool</button>
+                        <button id="collisionToolBtn" class="editor-btn" style="display: block; width: 100%; margin-bottom: 8px; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Collision Tool</button>
+                        <button id="pokemonZoneToolBtn" class="editor-btn" style="display: block; width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Pokemon Zones</button>
+                    </div>
+                    
+                    <!-- Object Properties -->
+                    <div class="tool-section">
+                        <h4 style="color: #007acc; margin-bottom: 10px;">📝 Selected Object</h4>
+                        <div id="objectProperties" style="color: #ccc; font-size: 14px;">
+                            <p>No object selected</p>
+                            <div id="positionControls" style="display: none;">
+                                <label style="display: block; margin-bottom: 5px;">X: <input type="number" id="objPosX" step="0.1" style="width: 60px; margin-left: 5px;"></label>
+                                <label style="display: block; margin-bottom: 5px;">Y: <input type="number" id="objPosY" step="0.1" style="width: 60px; margin-left: 5px;"></label>
+                                <label style="display: block; margin-bottom: 10px;">Z: <input type="number" id="objPosZ" step="0.1" style="width: 60px; margin-left: 5px;"></label>
+                                <button id="applyPositionBtn" style="padding: 4px 8px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status Bar -->
+                <div id="editor-status" style="position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: rgba(0,0,0,0.9); color: #ccc; display: flex; align-items: center; padding: 0 20px; font-size: 12px; border-top: 1px solid #333;">
+                    <span id="editorStatusText">Ready - Press 'E' to toggle editor | Use mouse to navigate | Admin access required</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen">
+        <div class="loading-container">
+            <div class="pokeball-loader"></div>
+            <h3>Loading Pokemon World...</h3>
+            <div id="loading-text">Connecting to server...</div>
+            <div id="loading-progress-container" style="width: 300px; height: 20px; background: rgba(255,255,255,0.2); border-radius: 10px; margin: 20px auto; overflow: hidden;">
+                <div id="loading-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff6b6b, #4ecdc4); border-radius: 10px; transition: width 0.3s ease;"></div>
+            </div>
+            <div id="loading-progress-text" style="font-size: 14px; margin-top: 10px;">0%</div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/battle-sprite-manager.js"></script>
+    <script src="js/battle-animation-manager.js"></script>
+    <script src="js/battle-interface.js"></script>
+    <script src="js/battle-module.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/admin-map-selector.js"></script>
+    <script src="js/main.js"></script>
+    <!-- Run battle test after all other scripts are loaded -->
+    <script src="js/battle-test.js"></script>
+</body>
+</html>

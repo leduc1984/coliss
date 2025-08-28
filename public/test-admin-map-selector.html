@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>Admin Map Selector Test</title>
+    <link rel=\"stylesheet\" href=\"css/admin-map-selector.css\">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .test-controls {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #2980b9;
+        }
+        .status {
+            background: #34495e;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ Admin Map Selector Test</h1>
+    
+    <div class=\"test-controls\">
+        <h3>Test Controls</h3>
+        <button class=\"test-button\" id=\"showSelectorBtn\">Show Map Selector</button>
+        <button class=\"test-button\" id=\"testApiBtn\">Test API Endpoint</button>
+        <button class=\"test-button\" id=\"simulateAdmin\">Simulate Admin User</button>
+        <button class=\"test-button\" id=\"clearLogsBtn\">Clear Logs</button>
+    </div>
+    
+    <div class=\"status\">
+        <h4>System Status</h4>
+        <div id=\"statusLog\"></div>
+    </div>
+    
+    <div class=\"status\">
+        <h4>Available Maps</h4>
+        <div id=\"mapsList\">Loading...</div>
+    </div>
+    
+    <div class=\"status\">
+        <h4>Test Log</h4>
+        <div id=\"testLog\" style=\"font-family: monospace; font-size: 12px;\"></div>
+    </div>
+
+    <!-- Load Socket.IO -->
+    <script src=\"/socket.io/socket.io.js\"></script>
+    <script src=\"js/admin-map-selector.js\"></script>
+    
+    <script>
+        let testSocket = null;
+        let adminMapSelector = null;
+        
+        // Mock game manager for testing
+        const mockGameManager = {
+            loadMap: function(mapName) {
+                log(`Mock loading map: ${mapName}`);
+                return Promise.resolve();
+            },
+            user: {
+                id: 1,
+                username: 'leduc',
+                role: 'admin'
+            }
+        };
+        
+        function log(message) {
+            const testLog = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            testLog.innerHTML += `[${timestamp}] ${message}<br>`;
+            testLog.scrollTop = testLog.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('statusLog').innerHTML = status;
+        }
+        
+        // Initialize test environment
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🧪 Admin Map Selector Test Environment Initialized');
+            
+            // Connect to socket
+            try {
+                testSocket = io();
+                
+                testSocket.on('connect', () => {
+                    log('✅ Socket connected: ' + testSocket.id);
+                    updateStatus('🟢 Connected to server');
+                });
+                
+                testSocket.on('disconnect', () => {
+                    log('❌ Socket disconnected');
+                    updateStatus('🔴 Disconnected from server');
+                });
+                
+                testSocket.on('admin_maps_available', (data) => {
+                    log(`📋 Received ${data.maps.length} maps from server`);
+                    displayMaps(data.maps);
+                });
+                
+                testSocket.on('admin_map_request_denied', (data) => {
+                    log('🚫 Map request denied: ' + data.message);
+                });
+                
+            } catch (error) {
+                log('❌ Failed to connect to socket: ' + error.message);
+                updateStatus('🔴 Socket connection failed');
+            }
+            
+            // Setup test buttons
+            document.getElementById('showSelectorBtn').addEventListener('click', () => {
+                if (!adminMapSelector) {
+                    adminMapSelector = new AdminMapSelector(mockGameManager, testSocket);
+                    log('📱 Admin Map Selector component created');
+                }
+                adminMapSelector.show();
+                log('👁️ Map selector shown');
+            });
+            
+            document.getElementById('testApiBtn').addEventListener('click', () => {
+                log('🔍 Testing API endpoint...');
+                fetch('/api/admin/maps', {
+                    headers: {
+                        'Authorization': 'Bearer test_token'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                })
+                .then(data => {
+                    log(`✅ API test successful: ${data.maps?.length || 0} maps`);
+                    displayMaps(data.maps || []);
+                })
+                .catch(error => {
+                    log(`❌ API test failed: ${error.message}`);
+                });
+            });
+            
+            document.getElementById('simulateAdmin').addEventListener('click', () => {
+                log('👑 Simulating admin authentication...');
+                if (testSocket) {
+                    testSocket.emit('admin_map_request');
+                    log('📤 Sent admin_map_request to server');
+                }
+            });
+            
+            document.getElementById('clearLogsBtn').addEventListener('click', () => {
+                document.getElementById('testLog').innerHTML = '';
+                log('🧹 Logs cleared');
+            });
+            
+            // Test keyboard events
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '1') {
+                    log('⌨️ Key \"1\" pressed - testing admin selector trigger');
+                    if (adminMapSelector) {
+                        adminMapSelector.show();
+                    }
+                }
+                if (e.key === 'Escape') {
+                    log('⌨️ Escape pressed - hiding selector');
+                    if (adminMapSelector) {
+                        adminMapSelector.hide();
+                    }
+                }
+            });
+            
+            log('🎮 Test controls initialized');
+            log('💡 Press \"1\" to test admin selector, Escape to close');
+        });
+        
+        function displayMaps(maps) {
+            const mapsList = document.getElementById('mapsList');
+            if (!maps || maps.length === 0) {
+                mapsList.innerHTML = 'No maps available';
+                return;
+            }
+            
+            let html = '<ul style=\"margin: 0; padding-left: 20px;\">';
+            maps.forEach((map, index) => {
+                html += `<li>${index + 1}. <strong>${map.displayName}</strong> (${map.name})`;
+                if (map.isLargeMap) html += ' 🔷 Large Map';
+                if (map.collisionPath) html += ' 🔒 Separate Collisions';
+                html += '</li>';
+            });
+            html += '</ul>';
+            mapsList.innerHTML = html;
+        }
+        
+        // Expose for debugging
+        window.testSocket = testSocket;
+        window.mockGameManager = mockGameManager;
+    </script>
+</body>
+</html>"

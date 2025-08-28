@@ -1,0 +1,64 @@
+newmtl d4_ruins_01b_lm4
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_01b_lm4.png
+map_Kd d4_ruins_01b_lm4.png
+map_d d4_ruins_01b_lm4.png
+newmtl d4_ruins_03_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_03_lm1.png
+map_Kd d4_ruins_03_lm1.png
+map_d d4_ruins_03_lm1.png
+newmtl d4_ruins_04_lm3
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_04_lm3.png
+map_Kd d4_ruins_04_lm3.png
+map_d d4_ruins_04_lm3.png
+newmtl d4_ruins_05_lm1
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_05_lm1.png
+map_Kd d4_ruins_05_lm1.png
+map_d d4_ruins_05_lm1.png
+newmtl d4_ruins_07_lm2
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_07_lm2.png
+map_Kd d4_ruins_07_lm2.png
+map_d d4_ruins_07_lm2.png
+newmtl d4_ruins_08_lm2
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_08_lm2.png
+map_Kd d4_ruins_08_lm2.png
+map_d d4_ruins_08_lm2.png
+newmtl d4_ruins_09_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_09_lm1.png
+map_Kd d4_ruins_09_lm1.png
+map_d d4_ruins_09_lm1.png
+newmtl d4_ruins_10_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka d4_ruins_10_lm1.png
+map_Kd d4_ruins_10_lm1.png
+map_d d4_ruins_10_lm1.png

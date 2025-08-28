@@ -1,0 +1,8 @@
+File names - Room names:
+ Entrance Room (Low Tide)
+ Inner Room (Low Tide)
+ Stairs Room
+ Lower Room
+ Entrance Room (High Tide)
+ Inner Room (High Tide)
+ Ice Room

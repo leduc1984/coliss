@@ -1,0 +1,27 @@
+============================================================
+RAPPORT DE MIGRATION POKEMON MMO
+============================================================
+Date: 2025-08-27T02:23:38.512Z
+Total d'espèces: 8
+Total d'attaques: 8
+
+LOGS DE MIGRATION:
+------------------------------
+✅ Migré: Bulbasaur (ID: 1)
+✅ Migré: Ivysaur (ID: 2)
+✅ Migré: Charizard (ID: 6)
+✅ Migré: Blastoise (ID: 9)
+✅ Migré: Pikachu (ID: 25)
+✅ Migré: Pidgeot (ID: 18)
+✅ Migré: Giratina (ID: 487)
+✅ Migré: Spinda (ID: 327)
+✅ Attaque migrée: Tackle (ID: 33)
+✅ Attaque migrée: Growl (ID: 45)
+✅ Attaque migrée: Vine Whip (ID: 22)
+✅ Attaque migrée: Ember (ID: 52)
+✅ Attaque migrée: Water Gun (ID: 55)
+✅ Attaque migrée: Thunder Shock (ID: 84)
+✅ Attaque migrée: Quick Attack (ID: 98)
+✅ Attaque migrée: Hyper Beam (ID: 63)
+
+============================================================

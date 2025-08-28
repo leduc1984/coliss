@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon MMO - Authentication Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: rgba(0,0,0,0.8); 
+            padding: 30px; 
+            border-radius: 10px; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #667eea; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            margin: 10px 0; 
+        }
+        button:hover { background: #5a6fd8; }
+        .message { 
+            margin-top: 15px; 
+            padding: 10px; 
+            border-radius: 5px; 
+            background: #444;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { 
+            background: #222; 
+            padding: 10px; 
+            border-radius: 5px; 
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎮 Pokemon MMO - Authentication Diagnostics</h2>
+        <p>Use this page to diagnose and fix authentication issues</p>
+        
+        <button onclick="testServerConnection()">🔗 Test Server Connection</button>
+        <button onclick="createAdminUser()">👑 Create Admin User (leduc)</button>
+        <button onclick="createTestUser()">🧪 Create Test User</button>
+        <button onclick="testTokenVerification()">🔐 Test Token Verification</button>
+        <button onclick="clearStorage()">🧹 Clear Local Storage</button>
+        <button onclick="testDirectGame()">🎮 Test Direct Game Access</button>
+        
+        <div id="message"></div>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script>
+        function showMessage(text, type = 'info') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = text;
+        }
+
+        function showDebug(data) {
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function testServerConnection() {
+            showMessage('Testing server connection...', 'info');
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    method: 'GET'
+                });
+                const result = await response.text();
+                
+                if (response.status === 401) {
+                    showMessage('✅ Server is running (401 Unauthorized is expected without token)', 'success');
+                } else {
+                    showMessage(`✅ Server response: ${response.status}`, 'success');
+                }
+                showDebug({ status: response.status, response: result });
+            } catch (error) {
+                showMessage(`❌ Server connection failed: ${error.message}`, 'error');
+                showDebug({ error: error.message });
+            }
+        }
+
+        async function createAdminUser() {
+            showMessage('Creating admin user (leduc)...', 'info');
+            try {
+                // First try to create the admin user
+                const registerResponse = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'leduc',
+                        email: 'leducgagnetommy@gmail.com',
+                        password: 'LeDuc123!',
+                        confirmPassword: 'LeDuc123!'
+                    })
+                });
+                
+                const result = await registerResponse.json();
+                
+                if (registerResponse.ok) {
+                    localStorage.setItem('pokemon_mmo_token', result.token);
+                    showMessage('✅ Admin user created and logged in successfully!', 'success');
+                    showDebug(result);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else if (registerResponse.status === 409) {
+                    // User already exists, try to login
+                    showMessage('Admin user already exists, attempting login...', 'info');
+                    await loginUser('leduc', 'LeDuc123!');
+                } else {
+                    showMessage(`Registration failed: ${result.message}`, 'error');
+                    showDebug(result);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+                showDebug({ error: error.message });
+            }
+        }
+
+        async function loginUser(username, password) {
+            try {
+                const loginResponse = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: username,
+                        password: password
+                    })
+                });
+                
+                const result = await loginResponse.json();
+                
+                if (loginResponse.ok) {
+                    localStorage.setItem('pokemon_mmo_token', result.token);
+                    showMessage('✅ Login successful! Redirecting to game...', 'success');
+                    showDebug(result);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showMessage(`Login failed: ${result.message}`, 'error');
+                    showDebug(result);
+                }
+            } catch (error) {
+                showMessage(`Login error: ${error.message}`, 'error');
+                showDebug({ error: error.message });
+            }
+        }
+
+        async function createTestUser() {
+            showMessage('Creating test user...', 'info');
+            try {
+                const response = await fetch('/api/auth/create-test-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('pokemon_mmo_token', result.token);
+                    showMessage('✅ Test user ready! Redirecting to game...', 'success');
+                    showDebug(result);
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showMessage(`Failed: ${result.message}`, 'error');
+                    showDebug(result);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+                showDebug({ error: error.message });
+            }
+        }
+
+        async function testTokenVerification() {
+            const token = localStorage.getItem('pokemon_mmo_token');
+            
+            if (!token) {
+                showMessage('❌ No token found in localStorage', 'error');
+                return;
+            }
+            
+            showMessage('Testing token verification...', 'info');
+            
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('✅ Token is valid!', 'success');
+                    showDebug({ valid: true, user: result.user });
+                } else {
+                    showMessage(`❌ Token verification failed: ${result.message}`, 'error');
+                    showDebug({ valid: false, error: result });
+                }
+            } catch (error) {
+                showMessage(`❌ Token verification error: ${error.message}`, 'error');
+                showDebug({ error: error.message });
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('pokemon_mmo_token');
+            sessionStorage.clear();
+            showMessage('✅ Local storage cleared', 'success');
+        }
+
+        function testDirectGame() {
+            const token = localStorage.getItem('pokemon_mmo_token');
+            
+            if (!token) {
+                showMessage('❌ No authentication token found. Please create a user first.', 'error');
+                return;
+            }
+            
+            showMessage('✅ Token found. Opening game...', 'success');
+            window.location.href = '/';
+        }
+
+        // Auto-test server connection on load
+        window.addEventListener('load', () => {
+            testServerConnection();
+        });
+    </script>
+</body>
+</html>

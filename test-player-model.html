@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Model Test</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            font-family: Arial, sans-serif; 
+            background: #222; 
+            color: white; 
+        }
+        canvas { 
+            width: 80%; 
+            height: 400px; 
+            border: 2px solid #555; 
+            display: block; 
+            margin: 20px auto;
+        }
+        .info {
+            text-align: center;
+            padding: 20px;
+            background: #333;
+            margin: 20px;
+            border-radius: 10px;
+        }
+        .log {
+            background: #111;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+    <div class="info">
+        <h2>🎮 Player Model Test</h2>
+        <p>Testing the player.glb and admin.glb model loading and animations</p>
+        <button onclick="testPlayerModel('player.glb')">Test Regular Player</button>
+        <button onclick="testPlayerModel('admin.glb')">Test Admin Player</button>
+        <button onclick="clearScene()">Clear Scene</button>
+    </div>
+    
+    <canvas id="testCanvas"></canvas>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        let scene, engine, currentPlayerMesh;
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function clearScene() {
+            if (currentPlayerMesh) {
+                currentPlayerMesh.dispose();
+                currentPlayerMesh = null;
+                log('🧹 Scene cleared');
+            }
+        }
+
+        async function testPlayerModel(modelFile = 'player.glb') {
+            try {
+                const modelType = modelFile === 'admin.glb' ? 'Admin' : 'Regular';
+                log(`🔄 Initializing Babylon.js for ${modelType} model...`);
+                
+                const canvas = document.getElementById('testCanvas');
+                
+                if (!engine) {
+                    engine = new BABYLON.Engine(canvas, true);
+                    scene = new BABYLON.Scene(engine);
+                    
+                    // Create camera
+                    const camera = new BABYLON.ArcRotateCamera(
+                        "camera", 
+                        -Math.PI / 2, 
+                        Math.PI / 2.5, 
+                        5, 
+                        BABYLON.Vector3.Zero(), 
+                        scene
+                    );
+                    camera.attachControl(canvas, true);
+                    
+                    // Create light
+                    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+                    light.intensity = 0.7;
+                    
+                    // Create ground
+                    const ground = BABYLON.MeshBuilder.CreateGround("ground", {size: 6}, scene);
+                    const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
+                    groundMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.3);
+                    ground.material = groundMaterial;
+                    
+                    // Start render loop
+                    engine.runRenderLoop(() => {
+                        scene.render();
+                    });
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        engine.resize();
+                    });
+                    
+                    log('✅ Scene initialized');
+                }
+                
+                // Clear previous model
+                clearScene();
+                
+                // Test player model loading
+                log(`🔄 Loading ${modelFile} model...`);
+                
+                const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                    "", 
+                    "./pokemon-map-editor/assets/player/", 
+                    modelFile, 
+                    scene
+                );
+                
+                if (result.meshes.length === 0) {
+                    throw new Error(`No meshes found in ${modelFile}`);
+                }
+                
+                log(`✅ ${modelType} model loaded successfully!`);
+                log(`📊 Meshes found: ${result.meshes.length}`);
+                log(`🎬 Animation groups: ${result.animationGroups?.length || 0}`);
+                
+                // Get the main mesh
+                currentPlayerMesh = result.meshes[0];
+                if (result.transformNodes && result.transformNodes.length > 0) {
+                    currentPlayerMesh = result.transformNodes[0];
+                }
+                
+                // Position the player
+                currentPlayerMesh.position = new BABYLON.Vector3(0, 0, 0);
+                currentPlayerMesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                
+                log(`📍 Player positioned at: ${currentPlayerMesh.position}`);
+                
+                // Log animation information
+                if (result.animationGroups && result.animationGroups.length > 0) {
+                    result.animationGroups.forEach((animGroup, index) => {
+                        log(`🎭 Animation ${index}: "${animGroup.name}" (${animGroup.from}-${animGroup.to})`);
+                        
+                        // Play first animation as test
+                        if (index === 0) {
+                            animGroup.start(true, 1.0, animGroup.from, animGroup.to, false);
+                            log(`▶️ Playing animation: ${animGroup.name}`);
+                        }
+                    });
+                } else {
+                    log('⚠️ No animations found in model');
+                }
+                
+                log(`🎉 ${modelType} model test completed successfully!`);
+                
+            } catch (error) {
+                log(`❌ Error loading ${modelFile}: ` + error.message);
+                console.error('Full error:', error);
+            }
+        }
+
+        // Initialize with regular player model when page loads
+        window.addEventListener('load', () => {
+            testPlayerModel('player.glb');
+        });
+    </script>
+</body>
+</html>

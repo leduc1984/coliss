@@ -1,0 +1,112 @@
+newmtl c4_m_logo3_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4_m_logo3_1.png
+map_Kd c4_m_logo3_1.png
+map_d c4_m_logo3_1.png
+newmtl c4_m_logo_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4_m_logo_1.png
+map_Kd c4_m_logo_1.png
+map_d c4_m_logo_1.png
+newmtl c4_musi01_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4_musi01_1.png
+map_Kd c4_musi01_1.png
+map_d c4_musi01_1.png
+newmtl c4theat01_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat01_1.png
+map_Kd c4theat01_1.png
+map_d c4theat01_1.png
+newmtl c4theat02_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7215686 0.7215686 0.7215686
+d 1
+Tr 1
+map_Ka c4theat02_1.png
+map_Kd c4theat02_1.png
+map_d c4theat02_1.png
+newmtl c4theat03_2_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat03_2_1.png
+map_Kd c4theat03_2_1.png
+map_d c4theat03_2_1.png
+newmtl c4theat03_3
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat03_3.png
+map_Kd c4theat03_3.png
+map_d c4theat03_3.png
+newmtl c4theat04_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat04_1.png
+map_Kd c4theat04_1.png
+map_d c4theat04_1.png
+newmtl c4theat05_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat05_1.png
+map_Kd c4theat05_1.png
+map_d c4theat05_1.png
+newmtl c4theat06_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat06_1.png
+map_Kd c4theat06_1.png
+map_d c4theat06_1.png
+newmtl c4theat07_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat07_1.png
+map_Kd c4theat07_1.png
+map_d c4theat07_1.png
+newmtl c4theat08_1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c4theat08_1.png
+map_Kd c4theat08_1.png
+map_d c4theat08_1.png
+newmtl h_kage_1
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka h_kage_1.png
+map_Kd h_kage_1.png
+map_d h_kage_1.png
+newmtl lambert1
+Ka 0 0 0
+Kd 0.3764706 0.3764706 0.3764706
+d 1
+Tr 1
+map_Ka lambert1.png
+map_Kd lambert1.png
+map_d lambert1.png

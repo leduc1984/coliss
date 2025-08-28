@@ -1,0 +1,182 @@
+:root {
+    --left-panel-width: 280px;
+    --right-panel-width: 320px;
+}
+
+body, html {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    font-family: Arial, sans-serif; background-color: #2c2c2c; color: #f0f0f0;
+}
+
+#top-bar {
+    position: absolute; top: 0; left: 0; width: 100%; height: 40px;
+    background-color: #333; display: flex; align-items: center;
+    padding: 0 10px; box-sizing: border-box; border-bottom: 2px solid #555; z-index: 10;
+    gap: 5px;
+}
+
+.tool-separator {
+    width: 2px;
+    height: 25px;
+    background-color: #555;
+    margin: 0 5px;
+}
+
+.tool-btn {
+    background-color: #4a4a4a;
+    border: 1px solid #666;
+    color: #f0f0f0;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.tool-btn.active {
+    background-color: #0078d4;
+    border-color: #0078d4;
+}
+
+.tool-panel {
+    background-color: #2a2a2a;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.tool-panel h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0078d4;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+
+.tool-panel label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.tool-panel input, .tool-panel select {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #555;
+    border-radius: 3px;
+    color: #f0f0f0;
+    box-sizing: border-box;
+}
+
+.tool-panel button {
+    width: 100%;
+    padding: 8px;
+    background-color: #0078d4;
+    border: none;
+    border-radius: 3px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.tool-panel button:hover {
+    background-color: #106ebe;
+}
+
+.pokemon-encounter-section {
+    border-top: 1px solid #444;
+    padding-top: 10px;
+}
+
+.pokemon-encounter-section h5 {
+    margin: 0 0 10px 0;
+    color: #ffa500;
+    font-size: 14px;
+}
+
+.encounter-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 10px;
+    border: 1px solid #444;
+    border-radius: 3px;
+    background-color: #1a1a1a;
+}
+
+.encounter-item {
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.encounter-item:last-child {
+    border-bottom: none;
+}
+
+.encounter-info {
+    flex: 1;
+}
+
+.encounter-remove {
+    background-color: #dc3545;
+    border: none;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.encounter-remove:hover {
+    background-color: #c82333;
+}
+
+button { /* ... (style inchangé) ... */ }
+
+#editor-container {
+    display: flex; width: 100%; height: 100%; 
+    padding-top: 40px; padding-bottom: 25px; /* Espace pour les barres */
+    box-sizing: border-box;
+}
+
+.panel {
+    padding: 10px; background-color: #3a3a3a; border: 1px solid #555;
+    overflow-y: auto; box-sizing: border-box; flex-shrink: 0; display: flex; flex-direction: column;
+}
+.panel h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px; }
+
+#left-panel { width: var(--left-panel-width); }
+#right-panel { width: var(--right-panel-width); }
+
+#meshSearch {
+    width: 100%; padding: 5px; margin-bottom: 10px; box-sizing: border-box;
+    background-color: #2c2c2c; color: white; border: 1px solid #555; border-radius: 3px;
+}
+#meshPanel { flex-grow: 1; overflow-y: auto; }
+
+.splitter { /* ... (style inchangé) ... */ }
+#renderCanvas { flex-grow: 1; height: 100%; outline: none; }
+
+#meshPanel div {
+    border-bottom: 1px solid #555; padding: 8px 2px;
+    display: flex; align-items: center; font-size: 14px; cursor: pointer;
+}
+#meshPanel div:hover { background-color: #4a4a4a; }
+#meshPanel div.selected { background-color: #0078d4; }
+#meshPanel label { /* ... (style inchangé) ... */ }
+
+#status-bar {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 25px;
+    background-color: #333; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px; box-sizing: border-box; border-top: 1px solid #555; z-index: 10; font-size: 12px;
+}

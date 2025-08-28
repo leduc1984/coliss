@@ -1,0 +1,469 @@
+/* ===================================
+   Pokemon ORAX Chat Interface
+   Professional Tabbed Chat System
+   =================================== */
+
+/* Chat Container */
+.pokemon-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Chat Header with Tabs */
+.pokemon-chat__header {
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+
+.pokemon-chat__tabs {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pokemon-chat__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.pokemon-chat__tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  position: relative;
+}
+
+.pokemon-chat__tab:hover {
+  color: var(--text-primary);
+  background: var(--white);
+}
+
+.pokemon-chat__tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--white);
+}
+
+.pokemon-chat__tab-badge {
+  background: var(--error);
+  color: var(--white);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  animation: pokemon-pulse 2s infinite;
+}
+
+/* Channel Icons */
+.pokemon-chat__tab-icon {
+  font-size: var(--text-base);
+}
+
+.pokemon-chat__tab--global .pokemon-chat__tab-icon::before {
+  content: '🌍';
+}
+
+.pokemon-chat__tab--english .pokemon-chat__tab-icon::before {
+  content: '🇬🇧';
+}
+
+.pokemon-chat__tab--private .pokemon-chat__tab-icon::before {
+  content: '💬';
+}
+
+.pokemon-chat__tab--system .pokemon-chat__tab-icon::before {
+  content: '⚙️';
+}
+
+/* Chat Messages Area */
+.pokemon-chat__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  scroll-behavior: smooth;
+}
+
+.pokemon-chat__messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pokemon-chat__messages::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: var(--radius);
+}
+
+.pokemon-chat__messages::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius);
+}
+
+.pokemon-chat__messages::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* Individual Message */
+.pokemon-chat__message {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+  animation: pokemon-fade-in 0.3s ease-out;
+}
+
+.pokemon-chat__message:hover {
+  background: var(--gray-50);
+}
+
+.pokemon-chat__message--system {
+  background: linear-gradient(90deg, var(--info) 0%, transparent 100%);
+  border-left: 3px solid var(--info);
+  padding-left: var(--space-4);
+}
+
+.pokemon-chat__message--error {
+  background: linear-gradient(90deg, var(--error) 0%, transparent 100%);
+  border-left: 3px solid var(--error);
+  padding-left: var(--space-4);
+}
+
+.pokemon-chat__message--warning {
+  background: linear-gradient(90deg, var(--warning) 0%, transparent 100%);
+  border-left: 3px solid var(--warning);
+  padding-left: var(--space-4);
+}
+
+/* Message Avatar */
+.pokemon-chat__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.pokemon-chat__avatar--admin {
+  background: linear-gradient(45deg, #FFD700, #FFA500);
+  color: var(--gray-900);
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+}
+
+.pokemon-chat__avatar--co-admin {
+  background: linear-gradient(45deg, #C0C0C0, #A0A0A0);
+  color: var(--gray-900);
+}
+
+.pokemon-chat__avatar--helper {
+  background: linear-gradient(45deg, var(--pokemon-green), #45B049);
+}
+
+.pokemon-chat__avatar::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background: var(--success);
+  border: 2px solid var(--white);
+  border-radius: var(--radius-full);
+}
+
+/* Message Content */
+.pokemon-chat__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pokemon-chat__header-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.pokemon-chat__username {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.pokemon-chat__username--admin {
+  color: #B8860B;
+  text-shadow: 0 1px 2px rgba(184, 134, 11, 0.3);
+}
+
+.pokemon-chat__username--co-admin {
+  color: #708090;
+}
+
+.pokemon-chat__username--helper {
+  color: var(--success);
+}
+
+.pokemon-chat__role-badge {
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pokemon-chat__timestamp {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.pokemon-chat__text {
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-wrap: break-word;
+  font-size: var(--text-sm);
+}
+
+.pokemon-chat__text--command {
+  font-family: var(--font-gaming);
+  background: var(--gray-100);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--primary);
+}
+
+/* Chat Input Area */
+.pokemon-chat__input-area {
+  padding: var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--gray-50);
+}
+
+.pokemon-chat__input-container {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.pokemon-chat__input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.pokemon-chat__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  background: var(--white);
+  color: var(--text-primary);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  transition: all var(--transition-fast);
+  font-family: var(--font-primary);
+}
+
+.pokemon-chat__input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.pokemon-chat__input::placeholder {
+  color: var(--text-muted);
+}
+
+.pokemon-chat__send-btn {
+  padding: var(--space-3);
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+}
+
+.pokemon-chat__send-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.pokemon-chat__send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pokemon-chat__send-btn::before {
+  content: '➤';
+  font-size: var(--text-lg);
+}
+
+/* Chat Features */
+.pokemon-chat__features {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pokemon-chat__feature-btn {
+  padding: var(--space-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-size: var(--text-sm);
+}
+
+.pokemon-chat__feature-btn:hover {
+  background: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.pokemon-chat__feature-btn--active {
+  background: var(--primary);
+  color: var(--white);
+  border-color: var(--primary);
+}
+
+/* Command Autocomplete */
+.pokemon-chat__autocomplete {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: var(--z-dropdown);
+  animation: pokemon-slide-in 0.2s ease-out;
+}
+
+.pokemon-chat__autocomplete-item {
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pokemon-chat__autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.pokemon-chat__autocomplete-item:hover,
+.pokemon-chat__autocomplete-item--selected {
+  background: var(--gray-50);
+}
+
+.pokemon-chat__autocomplete-command {
+  font-family: var(--font-gaming);
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.pokemon-chat__autocomplete-description {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Emoji Support */
+.pokemon-chat__emoji {
+  font-size: 1.2em;
+  vertical-align: baseline;
+}
+
+/* Mentions */
+.pokemon-chat__mention {
+  background: var(--primary);
+  color: var(--white);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pokemon-chat__tabs {
+    padding: 0 var(--space-2);
+  }
+  
+  .pokemon-chat__tab {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+  
+  .pokemon-chat__messages {
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+  
+  .pokemon-chat__input-area {
+    padding: var(--space-3);
+  }
+  
+  .pokemon-chat__avatar {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-xs);
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .pokemon-chat {
+    --surface: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --text-muted: #999999;
+    --border: #333333;
+    --gray-50: #2a2a2a;
+    --gray-100: #333333;
+  }
+}

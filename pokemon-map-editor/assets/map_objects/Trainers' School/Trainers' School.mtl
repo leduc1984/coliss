@@ -1,0 +1,40 @@
+newmtl c1sch001_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c1sch001_lm1.png
+map_Kd c1sch001_lm1.png
+map_d c1sch001_lm1.png
+newmtl c1sch002_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka c1sch002_lm1.png
+map_Kd c1sch002_lm1.png
+map_d c1sch002_lm1.png
+newmtl h_kage_lm1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka h_kage_lm1.png
+map_Kd h_kage_lm1.png
+map_d h_kage_lm1.png
+newmtl h_mado_lm1
+Ka 0.972549 0.972549 0.972549
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka h_mado_lm1.png
+map_Kd h_mado_lm1.png
+map_d h_mado_lm1.png
+newmtl hata_lm1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka hata_lm1.png
+map_Kd hata_lm1.png
+map_d hata_lm1.png

@@ -1,0 +1,40 @@
+newmtl h_kage_1
+Ka 0 0 0
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka h_kage_1.png
+map_Kd h_kage_1.png
+map_d h_kage_1.png
+newmtl sand_tex001_1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka sand_tex001_1.png
+map_Kd sand_tex001_1.png
+map_d sand_tex001_1.png
+newmtl sand_tex002_1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka sand_tex002_1.png
+map_Kd sand_tex002_1.png
+map_d sand_tex002_1.png
+newmtl sand_tex003_1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka sand_tex003_1.png
+map_Kd sand_tex003_1.png
+map_d sand_tex003_1.png
+newmtl sand_tex004_1
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.7843137 0.7843137 0.7843137
+d 1
+Tr 1
+map_Ka sand_tex004_1.png
+map_Kd sand_tex004_1.png
+map_d sand_tex004_1.png

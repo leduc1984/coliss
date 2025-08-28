@@ -1,0 +1,24 @@
+newmtl crane
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.972549 0.972549 0.972549
+d 1
+Tr 1
+map_Ka crane.png
+map_Kd crane.png
+map_d crane.png
+newmtl crane003
+Ka 0.7843137 0.7843137 0.7843137
+Kd 0.972549 0.972549 0.972549
+d 1
+Tr 1
+map_Ka crane003.png
+map_Kd crane003.png
+map_d crane003.png
+newmtl h_kage
+Ka 0.972549 0.972549 0.972549
+Kd 0.972549 0.972549 0.972549
+d 1
+Tr 1
+map_Ka h_kage.png
+map_Kd h_kage.png
+map_d h_kage.png

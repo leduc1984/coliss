@@ -1,0 +1,726 @@
+/* Pokemon ORAX - Professional UI Design System */
+
+:root {
+  /* Color Palette */
+  --primary: #667eea;
+  --primary-hover: #5a6fd8;
+  --secondary: #64b5f6;
+  --accent: #ff6b6b;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --info: #2196f3;
+  
+  /* Pokemon Colors */
+  --pokemon-red: #ef5350;
+  --pokemon-blue: #42a5f5;
+  --pokemon-green: #66bb6a;
+  --pokemon-yellow: #ffee58;
+  
+  /* Grayscale */
+  --white: #ffffff;
+  --gray-50: #f8f9fa;
+  --gray-100: #f1f3f5;
+  --gray-200: #e9ecef;
+  --gray-300: #dee2e6;
+  --gray-400: #ced4da;
+  --gray-500: #adb5bd;
+  --gray-600: #868e96;
+  --gray-700: #495057;
+  --gray-800: #343a40;
+  --gray-900: #212529;
+  --black: #000000;
+  
+  /* Surfaces */
+  --surface: var(--white);
+  --surface-hover: var(--gray-50);
+  --surface-active: var(--gray-100);
+  
+  /* Text */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-disabled: var(--gray-400);
+  
+  /* Borders */
+  --border: var(--gray-300);
+  --border-hover: var(--gray-400);
+  --border-focus: var(--primary);
+  
+  /* Spacing */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  
+  /* Typography */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-gaming: 'Orbitron', monospace;
+  --text-xs: 0.75rem;   /* 12px */
+  --text-sm: 0.875rem;  /* 14px */
+  --text-base: 1rem;    /* 16px */
+  --text-lg: 1.125rem;  /* 18px */
+  --text-xl: 1.25rem;   /* 20px */
+  --text-2xl: 1.5rem;   /* 24px */
+  --text-3xl: 1.875rem; /* 30px */
+  --text-4xl: 2.25rem;  /* 36px */
+  
+  /* Radius */
+  --radius-sm: 0.125rem; /* 2px */
+  --radius-md: 0.25rem;  /* 4px */
+  --radius-lg: 0.5rem;   /* 8px */
+  --radius-xl: 0.75rem;  /* 12px */
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Z-Index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* Reset and Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-primary);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--surface);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Screen Container */
+.screen {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* Auth Container */
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  animation: rotate 20s linear infinite;
+  z-index: 0;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Game Logo */
+.game-logo {
+  text-align: center;
+  margin-bottom: var(--space-8);
+  position: relative;
+  z-index: 1;
+}
+
+.game-logo h1 {
+  font-family: var(--font-gaming);
+  font-size: var(--text-4xl);
+  font-weight: 900;
+  color: var(--white);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  margin-bottom: var(--space-2);
+  letter-spacing: 2px;
+}
+
+.game-logo h2 {
+  font-family: var(--font-gaming);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 1px;
+}
+
+/* Auth Form */
+.auth-form {
+  display: none;
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-xl);
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.auth-form.active {
+  display: block;
+}
+
+.auth-form h3 {
+  font-family: var(--font-gaming);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--gray-800);
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+/* Input Group */
+.input-group {
+  margin-bottom: var(--space-4);
+}
+
+.input-group label {
+  display: block;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.input-group input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  transition: all var(--transition-fast);
+  background: var(--white);
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-group small {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  margin-top: var(--space-1);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  width: 100%;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Auth Switch */
+.auth-switch {
+  text-align: center;
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.auth-switch a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+/* Message */
+.message {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: var(--text-sm);
+  display: none;
+}
+
+.message.error {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.message.success {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+/* Pokemon ORAX Container */
+.pokemon-orax-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--surface);
+}
+
+/* Pokemon ORAX Navbar */
+.pokemon-orax-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  z-index: var(--z-sticky);
+}
+
+.pokemon-orax-navbar__brand {
+  font-family: var(--font-gaming);
+  font-size: var(--text-xl);
+  font-weight: 900;
+  color: var(--primary);
+  text-decoration: none;
+  letter-spacing: 1px;
+}
+
+.pokemon-orax-navbar__center {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pokemon-orax-navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.pokemon-orax-navbar__user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pokemon-orax-navbar__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.pokemon-orax-navbar__role {
+  display: inline-block;
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pokemon-orax-navbar__role--user {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.pokemon-orax-navbar__role--helper {
+  background: var(--success);
+  color: var(--white);
+}
+
+.pokemon-orax-navbar__role--co-admin {
+  background: var(--warning);
+  color: var(--white);
+}
+
+.pokemon-orax-navbar__role--admin {
+  background: var(--error);
+  color: var(--white);
+}
+
+/* Pokemon Card */
+.pokemon-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Pokemon Button */
+.pokemon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  gap: var(--space-2);
+}
+
+.pokemon-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pokemon-btn--primary {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.pokemon-btn--primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.pokemon-btn--secondary {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.pokemon-btn--secondary:hover:not(:disabled) {
+  background: var(--gray-300);
+  transform: translateY(-1px);
+}
+
+.pokemon-btn--sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.pokemon-btn--danger {
+  background: var(--error);
+  color: var(--white);
+}
+
+.pokemon-btn--danger:hover:not(:disabled) {
+  background: #d32f2f;
+  transform: translateY(-1px);
+}
+
+/* Content Area */
+.pokemon-orax-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Game Area */
+.pokemon-orax-game-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Loading Screen */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: var(--white);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.pokeball-loader {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(to bottom, #fff 0%, #fff 50%, #ff0000 50%, #ff0000 100%);
+  border-radius: 50%;
+  position: relative;
+  margin-bottom: var(--space-6);
+  box-shadow: 0 0 20px rgba(0,0,0,0.3);
+  animation: pokeball-spin 1s linear infinite;
+}
+
+.pokeball-loader::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  border: 4px solid #000;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.pokeball-loader::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: #000;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+@keyframes pokeball-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-container h3 {
+  font-family: var(--font-gaming);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Movement Indicator */
+.movement-indicator {
+  position: absolute;
+  bottom: 20px;
+  right: 400px;
+  z-index: 5;
+}
+
+.movement-cross {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.movement-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  transition: all var(--transition-fast);
+}
+
+.movement-arrow.up {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 15px 20px 15px;
+  border-color: transparent transparent rgba(255,255,255,0.7) transparent;
+}
+
+.movement-arrow.down {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 20px 15px 0 15px;
+  border-color: rgba(255,255,255,0.7) transparent transparent transparent;
+}
+
+.movement-arrow.left {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  border-width: 15px 20px 15px 0;
+  border-color: transparent rgba(255,255,255,0.7) transparent transparent;
+}
+
+.movement-arrow.right {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  border-width: 15px 0 15px 20px;
+  border-color: transparent transparent transparent rgba(255,255,255,0.7);
+}
+
+.movement-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+}
+
+.movement-arrow.active {
+  filter: brightness(1.5);
+  transform: scale(1.2);
+}
+
+/* Debug Overlay */
+.debug-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.9);
+  color: white;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: monospace;
+  display: none;
+  z-index: 5;
+}
+
+.debug-overlay.active {
+  display: block;
+}
+
+.debug-info {
+  margin-bottom: 8px;
+}
+
+.debug-controls {
+  font-size: 12px;
+  color: #ccc;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pokemon-orax-navbar {
+    padding: var(--space-2) var(--space-3);
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  
+  .pokemon-orax-navbar__center {
+    order: -1;
+  }
+  
+  .pokemon-orax-navbar__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .auth-container {
+    padding: var(--space-2);
+  }
+  
+  .auth-form {
+    padding: var(--space-4);
+    max-width: 100%;
+  }
+  
+  .game-logo h1 {
+    font-size: var(--text-3xl);
+  }
+  
+  .game-logo h2 {
+    font-size: var(--text-lg);
+  }
+  
+  .movement-indicator {
+    right: 20px;
+  }
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-sm {
+  font-size: var(--text-sm);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.mb-4 {
+  margin-bottom: var(--space-4);
+}
+
+.d-flex {
+  display: flex;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+}

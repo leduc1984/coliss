@@ -1,0 +1,625 @@
+/* ===================================
+   Pokemon ORAX Professional Map Editor
+   Godot/Unity-Style Interface
+   =================================== */
+
+/* CSS Variables for Professional Design */
+:root {
+  /* Professional Color Palette */
+  --editor-bg: #2b2d31;
+  --editor-surface: #36393f;
+  --editor-elevated: #3c3f45;
+  --editor-border: #484b51;
+  --editor-primary: #5865f2;
+  --editor-secondary: #4e5058;
+  --editor-success: #57f287;
+  --editor-warning: #fee75c;
+  --editor-error: #ed4245;
+  
+  /* Text Colors */
+  --editor-text: #ffffff;
+  --editor-text-muted: #b9bbbe;
+  --editor-text-secondary: #8e9297;
+  
+  /* Professional Typography */
+  --editor-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --editor-font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  
+  /* Spacing */
+  --editor-space-xs: 4px;
+  --editor-space-sm: 8px;
+  --editor-space-md: 12px;
+  --editor-space-lg: 16px;
+  --editor-space-xl: 24px;
+  
+  /* Border Radius */
+  --editor-radius: 4px;
+  --editor-radius-lg: 8px;
+  
+  /* Shadows */
+  --editor-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --editor-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Override Default Styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--editor-font);
+  background: var(--editor-bg);
+  color: var(--editor-text);
+  overflow: hidden;
+}
+
+/* Professional Top Bar */
+#top-bar {
+  background: var(--editor-surface);
+  border-bottom: 1px solid var(--editor-border);
+  padding: var(--editor-space-sm) var(--editor-space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--editor-space-md);
+  font-size: 13px;
+  height: 36px;
+  box-sizing: border-box;
+}
+
+#top-bar button {
+  background: var(--editor-elevated);
+  border: 1px solid var(--editor-border);
+  color: var(--editor-text);
+  padding: var(--editor-space-xs) var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--editor-font);
+}
+
+#top-bar button:hover {
+  background: var(--editor-secondary);
+  border-color: var(--editor-primary);
+}
+
+#top-bar button.active,
+#top-bar button.tool-btn.active {
+  background: var(--editor-primary);
+  border-color: var(--editor-primary);
+  color: white;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background: var(--editor-border);
+  margin: 0 var(--editor-space-xs);
+}
+
+/* Professional Editor Container */
+#editor-container {
+  display: flex;
+  height: calc(100vh - 36px);
+  background: var(--editor-bg);
+}
+
+/* Professional Panels */
+.panel {
+  background: var(--editor-surface);
+  border-right: 1px solid var(--editor-border);
+  display: flex;
+  flex-direction: column;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+#left-panel {
+  width: 280px;
+  border-right: 1px solid var(--editor-border);
+}
+
+#right-panel {
+  width: 300px;
+  border-left: 1px solid var(--editor-border);
+}
+
+/* Panel Headers */
+.panel h3 {
+  background: var(--editor-elevated);
+  margin: 0;
+  padding: var(--editor-space-md);
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--editor-border);
+  color: var(--editor-text);
+}
+
+/* Professional Splitters */
+.splitter {
+  width: 4px;
+  background: var(--editor-border);
+  cursor: col-resize;
+  position: relative;
+}
+
+.splitter:hover {
+  background: var(--editor-primary);
+}
+
+/* Canvas Area */
+#renderCanvas {
+  flex: 1;
+  background: #1e1e1e;
+  border: none;
+  outline: none;
+}
+
+/* Professional Search Input */
+#meshSearch {
+  width: 100%;
+  padding: var(--editor-space-sm);
+  background: var(--editor-bg);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  color: var(--editor-text);
+  font-size: 12px;
+  margin: var(--editor-space-md);
+  box-sizing: border-box;
+  font-family: var(--editor-font);
+}
+
+#meshSearch:focus {
+  outline: none;
+  border-color: var(--editor-primary);
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+}
+
+/* Professional Hierarchy Panel */
+#meshPanel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--editor-space-sm);
+}
+
+#meshPanel::-webkit-scrollbar {
+  width: 6px;
+}
+
+#meshPanel::-webkit-scrollbar-track {
+  background: var(--editor-bg);
+}
+
+#meshPanel::-webkit-scrollbar-thumb {
+  background: var(--editor-secondary);
+  border-radius: 3px;
+}
+
+/* Tool Panels */
+.tool-panel {
+  flex: 1;
+  padding: var(--editor-space-md);
+  overflow-y: auto;
+}
+
+.tool-panel h3 {
+  background: none;
+  border: none;
+  padding: 0 0 var(--editor-space-md) 0;
+  font-size: 14px;
+  color: var(--editor-text);
+}
+
+.tool-panel label {
+  display: block;
+  margin-bottom: var(--editor-space-xs);
+  font-size: 12px;
+  color: var(--editor-text-muted);
+  font-weight: 500;
+}
+
+.tool-panel select,
+.tool-panel input[type="number"] {
+  width: 100%;
+  padding: var(--editor-space-sm);
+  background: var(--editor-bg);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  color: var(--editor-text);
+  font-size: 12px;
+  margin-bottom: var(--editor-space-md);
+  font-family: var(--editor-font);
+}
+
+.tool-panel select:focus,
+.tool-panel input:focus {
+  outline: none;
+  border-color: var(--editor-primary);
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+}
+
+/* Professional Buttons */
+.tool-panel button {
+  background: var(--editor-primary);
+  border: none;
+  color: white;
+  padding: var(--editor-space-sm) var(--editor-space-md);
+  border-radius: var(--editor-radius);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: var(--editor-space-sm);
+  font-family: var(--editor-font);
+  font-weight: 500;
+}
+
+.tool-panel button:hover {
+  background: #4752c4;
+  transform: translateY(-1px);
+}
+
+/* Professional Pokemon Editor */
+#encounterEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--editor-space-md);
+}
+
+#encounterEditor h4 {
+  margin: var(--editor-space-lg) 0 var(--editor-space-sm) 0;
+  font-size: 13px;
+  color: var(--editor-text);
+  border-bottom: 1px solid var(--editor-border);
+  padding-bottom: var(--editor-space-xs);
+}
+
+#pokemonSelect {
+  flex: 1;
+  margin-right: var(--editor-space-sm);
+}
+
+#openSpriteSelector {
+  padding: var(--editor-space-sm);
+  min-width: 32px;
+  background: var(--editor-secondary);
+  color: var(--editor-text);
+}
+
+/* Encounter Form Layout */
+#encounterEditor > div:first-child {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--editor-space-sm);
+}
+
+#encounterEditor input[type="number"] {
+  width: 60px;
+  margin-bottom: 0;
+}
+
+#addEncounterBtn {
+  padding: var(--editor-space-sm);
+  min-width: 32px;
+  background: var(--editor-success);
+  color: white;
+}
+
+/* Encounter List */
+#encounterList {
+  background: var(--editor-bg);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  min-height: 100px;
+  padding: var(--editor-space-sm);
+  font-size: 12px;
+}
+
+/* Professional Modal */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-backdrop.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--editor-surface);
+  border-radius: var(--editor-radius-lg);
+  box-shadow: var(--editor-shadow-lg);
+  width: 90%;
+  max-width: 800px;
+  max-height: 80%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--editor-border);
+}
+
+.modal-header {
+  padding: var(--editor-space-lg);
+  border-bottom: 1px solid var(--editor-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--editor-elevated);
+  border-radius: var(--editor-radius-lg) var(--editor-radius-lg) 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--editor-text);
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+#closeSpriteSelector {
+  background: none;
+  border: none;
+  color: var(--editor-text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: var(--editor-space-xs);
+  border-radius: var(--editor-radius);
+  transition: all 0.15s ease;
+}
+
+#closeSpriteSelector:hover {
+  background: var(--editor-secondary);
+  color: var(--editor-text);
+}
+
+/* Sprite Grid */
+#spriteGridContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--editor-space-lg);
+}
+
+/* Professional Scrollbars */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--editor-bg);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--editor-secondary);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--editor-border);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  #left-panel {
+    width: 240px;
+  }
+  
+  #right-panel {
+    width: 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  #top-bar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 36px;
+  }
+  
+  #left-panel,
+  #right-panel {
+    width: 200px;
+  }
+  
+  .separator {
+    display: none;
+  }
+}
+
+/* Professional Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tool-panel,
+#meshPanel > * {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--editor-primary);
+  outline-offset: 2px;
+}
+
+/* Professional Tooltips */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--editor-elevated);
+  color: var(--editor-text);
+  padding: var(--editor-space-xs) var(--editor-space-sm);
+  border-radius: var(--editor-radius);
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  border: 1px solid var(--editor-border);
+  box-shadow: var(--editor-shadow);
+  pointer-events: none;
+}
+
+/* Map Objects Library */
+.object-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--editor-space-lg);
+}
+
+.object-category h4 {
+  margin: 0 0 var(--editor-space-sm) 0;
+  font-size: 13px;
+  color: var(--editor-text);
+  border-bottom: 1px solid var(--editor-border);
+  padding-bottom: var(--editor-space-xs);
+}
+
+.object-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--editor-space-sm);
+}
+
+.object-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--editor-space-sm);
+  background: var(--editor-bg);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.object-item:hover {
+  background: var(--editor-elevated);
+  border-color: var(--editor-primary);
+  transform: translateY(-1px);
+}
+
+.object-item:active {
+  transform: translateY(0);
+}
+
+.object-thumbnail {
+  font-size: 24px;
+  margin-bottom: var(--editor-space-xs);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--editor-surface);
+  border-radius: var(--editor-radius);
+}
+
+.object-name {
+  font-size: 10px;
+  color: var(--editor-text-muted);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.object-item.selected {
+  background: var(--editor-primary);
+  border-color: var(--editor-primary);
+  color: white;
+}
+
+.object-item.selected .object-name {
+  color: white;
+}
+
+.object-item.selected .object-thumbnail {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Status Bar */
+#status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background: #222;
+    color: #ccc;
+    display: flex;
+    font-size: 12px;
+    z-index: 1000;
+    border-top: 1px solid #444;
+}
+
+.status-item {
+    padding: 4px 8px;
+    border-right: 1px solid #444;
+}
+
+.status-item:last-child {
+    border-right: none;
+}
+
+/* Compression Status Indicators */
+.compression-status, .file-size-warning, .optimization-suggestions {
+    margin: 5px 0;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.compression-status {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+}
+
+.compression-status.compressed {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+}
+
+.compression-status.uncompressed {
+    background-color: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.file-size-warning {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+}
+
+.optimization-suggestions {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196f3;
+}
+
+/* Tool Panel Styles */
+.tool-panel {
+    padding: 15px;
+    border-bottom: 1px solid #444;
+}
+
+.tool-panel h3 {
+    margin: 0 0 15px 0;
+    color: #fff;
+    font-size: 16px;
+}

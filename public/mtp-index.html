@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTP Server Control Panel</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #4ecdc4;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #005a99;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .log {
+            background: #1e1e1e;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-entry.success {
+            color: #66bb6a;
+        }
+        
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+        
+        .log-entry.info {
+            color: #4ecdc4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 MTP Server Control Panel</h1>
+        
+        <div class="status" id="status">
+            Server Status: Checking...
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Automation</button>
+            <button id="stopBtn" disabled>Stop Automation</button>
+        </div>
+        
+        <h2>Automation Log</h2>
+        <div class="log" id="log">
+            <!-- Log entries will appear here -->
+        </div>
+    </div>
+
+    <script>
+        class MTPControlPanel {
+            constructor() {
+                this.isRunning = false;
+                this.logElement = document.getElementById('log');
+                this.statusElement = document.getElementById('status');
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                
+                this.setupEventListeners();
+                this.checkHealth();
+                this.updateStatus();
+            }
+            
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startAutomation());
+                this.stopBtn.addEventListener('click', () => this.stopAutomation());
+            }
+            
+            async checkHealth() {
+                try {
+                    const response = await fetch('/api/health');
+                    const data = await response.json();
+                    this.isRunning = data.automationRunning;
+                    this.updateStatus();
+                } catch (error) {
+                    this.log('Failed to check server health', 'error');
+                }
+            }
+            
+            updateStatus() {
+                this.statusElement.textContent = `Server Status: ${this.isRunning ? 'Automation Running' : 'Ready'}`;
+                this.startBtn.disabled = this.isRunning;
+                this.stopBtn.disabled = !this.isRunning;
+            }
+            
+            async startAutomation() {
+                try {
+                    const response = await fetch('/api/start-automation', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.log('Automation started successfully', 'success');
+                        this.isRunning = true;
+                    } else {
+                        this.log(`Failed to start automation: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.log(`Error starting automation: ${error.message}`, 'error');
+                }
+                
+                this.updateStatus();
+            }
+            
+            async stopAutomation() {
+                try {
+                    const response = await fetch('/api/stop-automation', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.log('Automation stopped successfully', 'success');
+                        this.isRunning = false;
+                    } else {
+                        this.log(`Failed to stop automation: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.log(`Error stopping automation: ${error.message}`, 'error');
+                }
+                
+                this.updateStatus();
+            }
+            
+            log(message, type = 'info') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                this.logElement.appendChild(entry);
+                this.logElement.scrollTop = this.logElement.scrollHeight;
+            }
+        }
+        
+        // Initialize the control panel when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.controlPanel = new MTPControlPanel();
+        });
+    </script>
+</body>
+</html>

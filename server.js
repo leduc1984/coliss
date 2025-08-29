@@ -246,6 +246,34 @@ app.post('/api/save/map', (req, res) => {
     }
 });
 
+// API endpoint to list map objects
+app.get('/api/editor/map-objects', (req, res) => {
+    const objectsPath = path.join(__dirname, 'pokemon-map-editor/assets/map_objects');
+    try {
+        const categories = {};
+        const categoryDirs = fs.readdirSync(objectsPath, { withFileTypes: true })
+            .filter(dirent => dirent.isDirectory())
+            .map(dirent => dirent.name);
+
+        for (const categoryName of categoryDirs) {
+            const categoryPath = path.join(objectsPath, categoryName);
+            const glbFiles = fs.readdirSync(categoryPath)
+                .filter(file => file.endsWith('.glb'))
+                .map(file => ({
+                    name: file.replace('.glb', '').replace(/_/g, ' '),
+                    path: `/assets/map_objects/${categoryName}/${file}`
+                }));
+            if (glbFiles.length > 0) {
+               categories[categoryName] = glbFiles;
+            }
+        }
+        res.json(categories);
+    } catch (error) {
+        console.error('Error reading map objects directory:', error);
+        res.status(500).json({ error: 'Failed to read map objects directory' });
+    }
+});
+
 // Serve the main game
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

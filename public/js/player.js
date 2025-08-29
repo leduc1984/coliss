@@ -63,9 +63,9 @@ class PlayerController {
         console.log('🎮 Setting up ORAS-style camera');
         
         // Apply ORAS camera settings
-        this.camera.alpha = -Math.PI / 2;   // -Math.PI / 2 (look straight ahead)
-        this.camera.beta = Math.PI / 4;     // Math.PI / 4 (45 degrees, looking down)
-        this.camera.radius = 25;            // 25 (distance between camera and player)
+        this.camera.alpha = -Math.PI / 2.5; // Angled 3/4 view
+        this.camera.beta = Math.PI / 5;     // Lowered angle for a more dynamic view
+        this.camera.radius = 20;            // Closer to the player
         
         // --- BUG FIX: Use lockedTarget for automatic camera following ---
         // This eliminates the conflict between manual camera updates and automatic following
@@ -75,12 +75,8 @@ class PlayerController {
         this.camera.detachControl();
         
         // Lock ORAS camera constraints for fixed view
-        this.camera.lowerAlphaLimit = -Math.PI / 2;
-        this.camera.upperAlphaLimit = -Math.PI / 2;
-        this.camera.lowerBetaLimit = Math.PI / 4;
-        this.camera.upperBetaLimit = Math.PI / 4;
-        this.camera.lowerRadiusLimit = 25;
-        this.camera.upperRadiusLimit = 25;
+        this.camera.lowerRadiusLimit = 15;
+        this.camera.upperRadiusLimit = 30;
         
         // Disable all camera movement for fixed ORAS view
         this.camera.inertia = 0;
@@ -195,29 +191,6 @@ class PlayerController {
                 if (window.gameManager && window.gameManager.refreshORASExperience) {
                     console.log('🔄 Triggering ORAS experience refresh...');
                     window.gameManager.refreshORASExperience();
-                }
-                if (event.preventDefault) event.preventDefault();
-                break;
-            case 'Digit1':
-            case '1':
-                // Admin map selector (only for admin/co-admin)
-                if (this.isAdmin) {
-                    if (window.adminMapSelector) {
-                        console.log('🗺️ Opening Admin Map Selector...');
-                        window.adminMapSelector.show();
-                    } else {
-                        console.warn('⚠️ Admin Map Selector not available');
-                        // Try to initialize it if gameManager is available
-                        if (window.gameManager && window.AdminMapSelector) {
-                            window.adminMapSelector = new AdminMapSelector(window.gameManager, this.socket);
-                            console.log('🗺️ Admin Map Selector initialized on demand');
-                            window.adminMapSelector.show();
-                        } else {
-                            console.error('❌ Cannot initialize Admin Map Selector: dependencies missing');
-                        }
-                    }
-                } else {
-                    console.log('🚫 Access denied: Admin privileges required for map selector');
                 }
                 if (event.preventDefault) event.preventDefault();
                 break;
@@ -337,7 +310,6 @@ class PlayerController {
         // Movement update loop
         this.scene.registerBeforeRender(() => {
             this.updateMovement();
-            this.updateCamera();
             this.checkPositionChange();
             this.updateDebugInfo();
             this.updateMovementIndicator();
@@ -348,112 +320,65 @@ class PlayerController {
         const deltaTime = this.scene.getEngine().getDeltaTime() / 1000.0;
         let moved = false;
         
-        // Phase 3: Implémentation du mouvement selon TODO spécifications ORAS
-        // "Le mouvement doit être relatif à la direction de la caméra"
         let moveVector = BABYLON.Vector3.Zero();
         
-        // Calculer la direction: Le mouvement doit être relatif à la direction de la caméra
-        // Get camera's forward direction (where it's looking) - ORAS style calculation
         const cameraForward = this.camera.getForwardRay().direction;
-        const cameraRight = BABYLON.Vector3.Cross(cameraForward, BABYLON.Vector3.Up());
+        const cameraRight = BABYLON.Vector3.Cross(this.scene.activeCamera.upVector, cameraForward);
         
-        // Normalize directions and project to horizontal plane for ORAS movement
         const forwardDir = new BABYLON.Vector3(cameraForward.x, 0, cameraForward.z).normalize();
         const rightDir = new BABYLON.Vector3(cameraRight.x, 0, cameraRight.z).normalize();
         
-        // TODO Phase 3: Mapping exact selon spécifications
-        // "Quand le joueur appuie sur W (avancer), le personnage doit bouger dans la direction où la caméra regarde"
         if (this.inputMap.forward) {
-            // W: Move in camera's forward direction (but on horizontal plane)
             moveVector.addInPlace(forwardDir);
             moved = true;
         }
         if (this.inputMap.backward) {
-            // S: Move backward relative to camera direction
             moveVector.subtractInPlace(forwardDir);
             moved = true;
         }
-        
-        // "Quand il appuie sur A (gauche), il doit bouger à 90 degrés à gauche de la direction de la caméra"
         if (this.inputMap.left) {
-            // A: Move 90 degrees left of camera direction
-            moveVector.subtractInPlace(rightDir);
+            moveVector.addInPlace(rightDir);
             moved = true;
         }
         if (this.inputMap.right) {
-            // D: Move 90 degrees right of camera direction
-            moveVector.addInPlace(rightDir);
+            moveVector.subtractInPlace(rightDir);
             moved = true;
         }
 
         if (moved) {
-            // Normalize diagonal movement for consistent speed
             if (moveVector.length() > 1) {
                 moveVector.normalize();
             }
 
-            // Apply speed modifiers
             let currentSpeed = this.moveSpeed;
-            
-            // Running speed bonus
             if (this.inputMap.run) {
-                currentSpeed *= 1.5; // 50% faster when running
-            }
-            
-            // Admin-specific speed adjustment for precise control
-            if (this.adminPreciseMovement) {
-                currentSpeed *= 0.8; // 20% slower for precise control
+                currentSpeed *= 1.8; // Slightly faster run
             }
 
-            // Calculate movement with enhanced smoothness
-            const movement = moveVector.scale(currentSpeed * deltaTime);
-
-            // "Déplacer le personnage : Utilise la méthode playerMesh.moveWithCollisions(directionVector)"
-            if (this.player.moveWithCollisions && typeof this.player.moveWithCollisions === 'function') {
-                // Use Babylon.js collision system if available
-                this.player.moveWithCollisions(movement);
-            } else {
-                // Manual movement for GLB models
-                this.player.position.addInPlace(movement);
-                
-                // Enhanced boundary check to prevent going out of bounds
-                const maxDistance = 50; // Maximum distance from origin
-                if (this.player.position.length() > maxDistance) {
-                    this.player.position.normalize().scaleInPlace(maxDistance);
-                }
+            if (this.player.physicsImpostor) {
+                const velocity = moveVector.scale(currentSpeed);
+                this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(velocity.x, this.player.physicsImpostor.getLinearVelocity().y, velocity.z));
             }
 
-            // "Orienter le personnage : Le modèle 3D du joueur doit pivoter pour faire face à la direction dans laquelle il se déplace"
             if (moveVector.length() > 0) {
-                // Calculate target rotation based on movement direction
                 const targetRotation = Math.atan2(moveVector.x, moveVector.z);
-                
-                if (this.adminPreciseMovement) {
-                    // Instant rotation for admin precise control
-                    this.player.rotation.y = targetRotation;
-                } else {
-                    // Smooth rotation transition for authentic ORAS feel
-                    const currentY = this.player.rotation.y;
-                    let diff = targetRotation - currentY;
-                    
-                    // Handle rotation wrap-around (choose shortest path)
-                    if (Math.abs(diff) > Math.PI) {
-                        diff = diff - Math.sign(diff) * 2 * Math.PI;
-                    }
-                    
-                    // Apply smooth rotation with ORAS-appropriate speed
-                    const rotationSpeedMultiplier = 4.0; // Quick but smooth rotation
-                    this.player.rotation.y += diff * rotationSpeedMultiplier * deltaTime;
+                const currentY = this.player.rotation.y;
+                let diff = targetRotation - currentY;
+                if (Math.abs(diff) > Math.PI) {
+                    diff = diff - Math.sign(diff) * 2 * Math.PI;
                 }
+                const rotationSpeedMultiplier = 8.0;
+                this.player.rotation.y += diff * rotationSpeedMultiplier * deltaTime;
             }
 
             this.isMoving = true;
         } else {
-            // Stop moving
+            if (this.player.physicsImpostor) {
+                this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, this.player.physicsImpostor.getLinearVelocity().y, 0));
+            }
             this.isMoving = false;
         }
 
-        // Update animation state with enhanced transitions (Phase 3: Gérer les animations de mouvement)
         this.updateAnimationState();
     }
 
@@ -815,79 +740,75 @@ class PlayerController {
     }
     
     /**
-     * Show admin battle testing help overlay
+     * Show an interactive admin menu for battle testing.
      */
     showAdminBattleHelp() {
-        // Remove existing help overlay if present
-        const existingHelp = document.getElementById('admin-battle-help');
-        if (existingHelp) {
-            existingHelp.remove();
+        // Remove existing menu if present
+        const existingMenu = document.getElementById('admin-battle-menu');
+        if (existingMenu) {
+            existingMenu.remove();
             return; // Toggle off
         }
         
-        const helpOverlay = document.createElement('div');
-        helpOverlay.id = 'admin-battle-help';
-        helpOverlay.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            border: 2px solid #FFD700;
-            z-index: 9999;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-width: 400px;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-        `;
-        
-        helpOverlay.innerHTML = `
-            <div style="text-align: center; margin-bottom: 15px;">
-                <h3 style="color: #FFD700; margin: 0; font-size: 16px;">🔧 Admin Battle Testing</h3>
-                <p style="color: #ccc; margin: 5px 0; font-size: 10px;">Press 6 again to close</p>
-            </div>
-            
-            <div style="border-top: 1px solid #444; padding-top: 10px;">
-                <h4 style="color: #4ECDC4; margin: 5px 0;">🎮 Battle Controls:</h4>
-                <p style="margin: 3px 0;"><strong>0</strong> - Random Wild Pokemon Battle</p>
-                <p style="margin: 3px 0;"><strong>8</strong> - AI Trainer Battle (Admin Only)</p>
-                <p style="margin: 3px 0;"><strong>7</strong> - Grass Encounter Simulation (Admin Only)</p>
-                
-                <h4 style="color: #4ECDC4; margin: 10px 0 5px 0;">🗺️ Map Controls:</h4>
-                <p style="margin: 3px 0;"><strong>1</strong> - Admin Map Selector (Admin Only)</p>
-                <p style="margin: 3px 0;"><strong>9</strong> - Open Map Editor (Admin Only)</p>
-                
-                <h4 style="color: #4ECDC4; margin: 10px 0 5px 0;">📷 Camera Controls:</h4>
-                <p style="margin: 3px 0;"><strong>C</strong> - Toggle First Person View</p>
-                <p style="margin: 3px 0;"><strong>V</strong> - Cinematic View</p>
-                <p style="margin: 3px 0;"><strong>R</strong> - Reset ORAS Camera</p>
-                <p style="margin: 3px 0;"><strong>F5</strong> - Refresh ORAS Experience</p>
-                
-                <h4 style="color: #4ECDC4; margin: 10px 0 5px 0;">🔧 Debug:</h4>
-                <p style="margin: 3px 0;"><strong>P</strong> - Debug Position Info</p>
-                <p style="margin: 3px 0;"><strong>F1</strong> - Toggle Debug Overlay</p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #444;">
-                <button onclick="document.getElementById('admin-battle-help').remove()" style="
-                    background: #dc3545; color: white; border: none; padding: 5px 15px;
-                    border-radius: 3px; cursor: pointer; font-size: 11px;
-                ">Close Help</button>
+        const menuOverlay = document.createElement('div');
+        menuOverlay.id = 'admin-battle-menu';
+        menuOverlay.className = 'admin-menu-overlay'; // Use a class for styling
+
+        menuOverlay.innerHTML = `
+            <div class="admin-menu-panel">
+                <div class="admin-menu-header">
+                    <h3>🔧 Admin Battle Test Menu</h3>
+                    <button id="close-admin-menu" class="admin-menu-close-btn">&times;</button>
+                </div>
+                <div class="admin-menu-content">
+                    <p>Select a battle type to initiate.</p>
+                    <button class="admin-menu-btn" data-action="wild">Start Wild Battle</button>
+                    <button class="admin-menu-btn" data-action="grass">Simulate Grass Encounter</button>
+                    <button class="admin-menu-btn" data-action="trainer">Start AI Trainer Battle</button>
+                </div>
             </div>
         `;
         
-        document.body.appendChild(helpOverlay);
-        
-        // Auto-hide after 30 seconds
-        setTimeout(() => {
-            if (document.getElementById('admin-battle-help')) {
-                helpOverlay.remove();
+        document.body.appendChild(menuOverlay);
+
+        const closeMenu = () => {
+            menuOverlay.remove();
+            document.removeEventListener('keydown', keydownHandler);
+        };
+
+        const keydownHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeMenu();
             }
-        }, 30000);
+        };
+
+        menuOverlay.querySelector('#close-admin-menu').addEventListener('click', closeMenu);
+        menuOverlay.addEventListener('click', (e) => {
+            if (e.target === menuOverlay) {
+                closeMenu();
+            }
+        });
+        document.addEventListener('keydown', keydownHandler);
+
+        menuOverlay.querySelector('.admin-menu-content').addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            if (action) {
+                closeMenu();
+                switch (action) {
+                    case 'wild':
+                        this.startRandomBattle();
+                        break;
+                    case 'grass':
+                        this.simulateGrassEncounter();
+                        break;
+                    case 'trainer':
+                        this.startAITrainerBattle();
+                        break;
+                }
+            }
+        });
         
-        console.log('🔧 Admin battle testing help displayed');
+        console.log('🔧 Admin battle testing menu displayed');
     }
     
     /**

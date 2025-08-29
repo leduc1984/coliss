@@ -1788,168 +1788,100 @@ class GameManager {
     }
 
     async createPlayer() {
-        try {
-            console.log('🎮 Phase 2: Chargement et configuration du joueur');
-            this.updateLoadingText('Chargement du modèle joueur Calem...');
-            
-            // Phase 2: Charger le modèle GLB
-            // "Utilise BABYLON.SceneLoader.ImportMeshAsync pour charger le fichier .glb du personnage joueur"
-            let modelFileName = 'calem/calem.glb';
-            let modelDescription = 'Calem player';
-            
-            console.log('👤 Chargement du modèle Calem pour l\'utilisateur:', this.user?.username || 'unknown');
-            
-            // Load the calem GLB model with proper error handling
-            const result = await BABYLON.SceneLoader.ImportMeshAsync(
-                "", // Import all meshes
-                "/pokemon-map-editor/assets/player/", // Corrected path - removed the dot to use absolute path
-                modelFileName, // calem/calem.glb
-                this.scene
-            );
-            
-            console.log('📊 Résultats du chargement du modèle Calem:');
-            console.log('  - Meshes trouvés:', result.meshes.length);
-            console.log('  - Transform nodes:', result.transformNodes?.length || 0);
-            console.log('  - Groupes d\'animation:', result.animationGroups?.length || 0);
-            console.log('  - Skeletons:', result.skeletons?.length || 0);
-            
-            if (result.meshes.length === 0) {
-                throw new Error(`Aucun mesh trouvé dans ${modelFileName}`);
-            }
-            
-            // Get the main player mesh (Phase 2: configuration du joueur)
-            this.player = result.meshes[0];
-            if (result.transformNodes && result.transformNodes.length > 0) {
-                this.player = result.transformNodes[0];
-            }
-            
-            // Phase 2: Ajuster l'échelle
-            // "Une fois le modèle chargé, ajuste son échelle si nécessaire pour qu'il ait la bonne taille dans le monde"
-            this.player.scaling = new BABYLON.Vector3(1.5, 1.5, 1.5); // Adjusted for better proportions
-            
-            // Spawn player at the specific spawn point on matrix1 map
-            // Set the player's initial position to these coordinates
-            let spawnPosition;
-            if (this.currentMapName === 'matrix1') {
-                spawnPosition = new BABYLON.Vector3(-14.33, 1.0, -25.22); // Increased Y to prevent clipping
-            } else if (this.currentMapName === 'castle_village') {
-                // Set a default spawn position for castle village
-                spawnPosition = new BABYLON.Vector3(0, 1.0, 0);
-            } else if (this.currentMapName === 'soaring_overworld') {
-                // Set a default spawn position for soaring overworld
-                spawnPosition = new BABYLON.Vector3(0, 5.0, 0); // Higher Y position for flying map
-            } else {
-                // Default spawn for other maps
-                spawnPosition = new BABYLON.Vector3(0, 1.0, 0);
-            }
-            console.log(`📍 Spawning player at position:`, spawnPosition);
-            this.player.position = spawnPosition;
-            
-            // Make sure Calem model is visible
-            this.player.visibility = 1.0;
-            if (this.player.getChildMeshes) {
-                this.player.getChildMeshes().forEach(mesh => {
-                    mesh.visibility = 1.0;
-                    // Ensure all child meshes receive shadows and cast shadows
-                    mesh.receiveShadows = true;
-                });
-            }
-            
-            // Phase 2: Activer les collisions
-            // "Assure-toi que le mesh du joueur a les collisions activées"
-            this.player.physicsImpostor = new BABYLON.PhysicsImpostor(this.player, BABYLON.PhysicsImpostor.CapsuleImpostor, { mass: 1, restitution: 0.1, friction: 0.5 }, this.scene);
-            this.player.physicsImpostor.physicsBody.angularDamping = 0.9;
-            this.player.checkCollisions = true;
-            this.player.ellipsoid = new BABYLON.Vector3(0.4, 0.8, 0.4); // Calem-specific collision box
-            this.player.ellipsoidOffset = new BABYLON.Vector3(0, 0.8, 0);
-            
-            // FIX: Correctly find the main character mesh within the loaded hierarchy
-            // and extract the animationGroups from it instead of using the root container
-            let animationGroups = result.animationGroups;
-            
-            // If we have meshes, try to find the one with animations
-            if (result.meshes.length > 0) {
-                // Look for a mesh that has the most animations or is the main character
-                for (let i = 0; i < result.meshes.length; i++) {
-                    const mesh = result.meshes[i];
-                    // If this mesh has child meshes, it might be the main container
-                    if (mesh.getChildMeshes && mesh.getChildMeshes().length > 0) {
-                        // This might be our main character mesh
-                        console.log(`🔍 Found potential main character mesh: ${mesh.name}`);
-                        // Use animations from result if not already found on mesh
-                        break;
-                    }
-                }
-            }
-            
-            // Phase 2: Initialiser l'Animation Mixer
-            // "Le modèle GLB contient plusieurs animations. Parcours le tableau gltf.animationGroups."
-            // "Stocke les animations clés (par exemple, celles contenant "idle" et "walk" dans leur nom) dans des variables pour un accès facile."
-            // "Arrête toutes les animations par défaut (animationGroup.stop()) et lance l'animation "idle" en boucle."
-            this.setupPlayerAnimations(animationGroups);
-            
-            // Set initial camera position and target (ORAS style) optimized for Calem
-            // TODO Correction: Apply these exact settings to the ArcRotateCamera
-            this.camera.alpha = -Math.PI / 2;   // Orients the camera directly behind the player
-            this.camera.beta = Math.PI / 4;     // Sets the vertical angle to 45 degrees (high-angle view)
-            this.camera.radius = 25;            // Increase distance slightly for a wider view of the map
-            this.camera.lockedTarget = this.player;  // Forces the camera to always look at the player mesh
-            
-            console.log(`✅ Modèle 3D ${modelDescription} chargé avec succès`);
-            console.log('.Meshes:', result.meshes.length);
-            console.log('Groupes d\'animation:', animationGroups?.length || 0);
-            
-            // Log Calem model details for debugging
-            if (animationGroups && animationGroups.length > 0) {
-                console.log('🎬 Détails des animations Calem:');
-                animationGroups.forEach((animGroup, index) => {
-                    console.log(`  ${index}: "${animGroup.name}" (${animGroup.from}-${animGroup.to})`);
-                });
-            }
-            
-            console.log('✅ Phase 2 terminée: Joueur configuré avec modèle GLB, échelle, collisions et animations');
-            
-            // FIX: Move PlayerController creation inside the async loading promise to prevent race condition
-            const userRole = this.user?.role || 'user';
-            this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
-            
-            console.log(`📍 Joueur Calem créé à la position: ${this.player.position} avec le rôle: ${userRole}`);
-        } catch (error) {
-            console.warn(`❌ Échec du chargement du modèle Calem: ${error.message}`);
-            console.log('Création d\'un modèle de secours...');
-            
-            // Fallback to simple capsule if Calem GLB loading fails
-            this.player = BABYLON.MeshBuilder.CreateCapsule("player", {
-                radius: 0.4,
-                height: 1.8
-            }, this.scene);
-            
-            // Spawn player at the specific spawn point on matrix1 map
-            // Set the player's initial position to these coordinates
-            let spawnPosition;
-            if (this.currentMapName === 'matrix1') {
-                spawnPosition = new BABYLON.Vector3(-14.33, 1.0, -25.22); // Increased Y to prevent clipping
-            } else if (this.currentMapName === 'castle_village') {
-                // Set a default spawn position for castle village
-                spawnPosition = new BABYLON.Vector3(0, 1.0, 0);
-            } else {
-                // Default spawn for other maps
-                spawnPosition = new BABYLON.Vector3(0, 1.0, 0);
-            }
-            console.log(`📍 Spawning fallback player at position:`, spawnPosition);
-            this.player.position = spawnPosition;
-            this.player.checkCollisions = true;
-            
-            // Set up basic animations for fallback player
-            this.setupFallbackPlayerAnimations();
-            
-            // Create PlayerController with fallback player
-            const userRole = this.user?.role || 'user';
-            this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
-            
-            console.log(`⚠️ Joueur de secours créé à la position: ${this.player.position} avec le rôle: ${userRole}`);
+    try {
+        console.log('🎮 Phase 2: Chargement et configuration du joueur');
+        this.updateLoadingText('Chargement du modèle joueur Calem...');
+
+        const modelFileName = 'calem/calem.glb';
+        console.log('👤 Chargement du modèle Calem pour l\'utilisateur:', this.user?.username || 'unknown');
+
+        // Charger le modèle GLB
+        const result = await BABYLON.SceneLoader.ImportMeshAsync(
+            "", 
+            "/pokemon-map-editor/assets/player/", 
+            modelFileName, 
+            this.scene
+        );
+
+        console.log('📊 Résultats du chargement du modèle Calem:', {
+            meshes: result.meshes.length,
+            transformNodes: result.transformNodes?.length || 0,
+            animationGroups: result.animationGroups?.length || 0,
+            skeletons: result.skeletons?.length || 0
+        });
+
+        if (result.meshes.length === 0) throw new Error(`Aucun mesh trouvé dans ${modelFileName}`);
+
+        // Définir le mesh principal
+        this.player = result.meshes[0];
+        if (result.transformNodes && result.transformNodes.length > 0) this.player = result.transformNodes[0];
+
+        // Échelle et position
+        this.player.scaling = new BABYLON.Vector3(1.5, 1.5, 1.5);
+
+        let spawnPosition = new BABYLON.Vector3(0, 1, 0);
+        if (this.currentMapName === 'matrix1') spawnPosition = new BABYLON.Vector3(-14.33, 1.0, -25.22);
+        else if (this.currentMapName === 'castle_village') spawnPosition = new BABYLON.Vector3(0, 1.0, 0);
+        else if (this.currentMapName === 'soaring_overworld') spawnPosition = new BABYLON.Vector3(0, 5.0, 0);
+
+        console.log('📍 Spawning player at position:', spawnPosition);
+        this.player.position = spawnPosition;
+        this.player.visibility = 1.0;
+
+        if (this.player.getChildMeshes) {
+            this.player.getChildMeshes().forEach(mesh => {
+                mesh.visibility = 1.0;
+                mesh.receiveShadows = true;
+            });
         }
+
+        // Collisions et physique
+        this.player.physicsImpostor = new BABYLON.PhysicsImpostor(
+            this.player, 
+            BABYLON.PhysicsImpostor.CapsuleImpostor, 
+            { mass: 1, restitution: 0.1, friction: 0.5 }, 
+            this.scene
+        );
+        if (this.player.physicsImpostor.physicsBody) this.player.physicsImpostor.physicsBody.angularDamping = 0.9;
+        this.player.checkCollisions = true;
+        this.player.ellipsoid = new BABYLON.Vector3(0.4, 0.8, 0.4);
+        this.player.ellipsoidOffset = new BABYLON.Vector3(0, 0.8, 0);
+
+        // Animations
+        this.setupPlayerAnimations(result.animationGroups);
+
+        // Caméra ORAS style
+        this.camera.alpha = -Math.PI / 2;
+        this.camera.beta = Math.PI / 4;
+        this.camera.radius = 25;
+        this.camera.lockedTarget = this.player;
+
+        // PlayerController
+        const userRole = this.user?.role || 'user';
+        this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+
+        console.log('✅ Modèle 3D Calem chargé avec succès');
+
+    } catch (error) {
+        console.warn('❌ Échec du chargement du modèle Calem:', error);
+
+        // Création fallback
+        this.player = BABYLON.MeshBuilder.CreateCapsule("player", { radius: 0.4, height: 1.8 }, this.scene);
+        this.player.position = this.currentMapName === 'matrix1' ? new BABYLON.Vector3(-14.33, 1, -25.22) : new BABYLON.Vector3(0, 1, 0);
+        this.player.checkCollisions = true;
+
+        if (typeof this.setupFallbackPlayerAnimations === 'function') {
+            this.setupFallbackPlayerAnimations();
+        } else {
+            console.warn('⚠️ Animation fallback non définie');
+        }
+
+        const userRole = this.user?.role || 'user';
+        this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+        console.log('⚠️ Joueur fallback créé avec succès');
     }
+}
+
 
     // Helper method to check if an animation group is valid
     isAnimationValid(animationGroup) {

@@ -2175,23 +2175,17 @@ class GameManager {
         let otherPlayer;
         
         try {
-            // Determine which model to load based on player role
-            let modelFileName = 'player.glb'; // Default for regular users
-            let modelDescription = 'regular player';
+            // Use the Calem model for all players regardless of role
+            let modelFileName = 'calem/calem.glb';
+            let modelDescription = 'Calem player';
             
-            if (playerData.role === 'admin' || playerData.role === 'co-admin') {
-                modelFileName = 'admin.glb';
-                modelDescription = 'admin';
-                console.log('👑 Loading admin model for other player:', playerData.username);
-            } else {
-                console.log('👤 Loading regular player model for other player:', playerData.username);
-            }
+            console.log('👤 Loading Calem model for player:', playerData.username);
             
-            // Try to load the appropriate 3D model for other players
+            // Try to load the Calem 3D model for all players
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
                 "", // Import all meshes
-                "../pokemon-map-editor/assets/player/", // Path
-                modelFileName, // Dynamic filename based on role
+                "/pokemon-map-editor/assets/player/", // Use absolute path to ensure consistency
+                modelFileName,
                 this.scene
             );
             
@@ -2201,12 +2195,12 @@ class GameManager {
                     otherPlayer = result.transformNodes[0];
                 }
                 
-                console.log(`✅ Loaded 3D ${modelDescription} model for other player:`, playerData.username);
+                console.log(`✅ Loaded Calem model for player:`, playerData.username);
             } else {
                 throw new Error('No meshes in GLB');
             }
         } catch (error) {
-            console.log(`⚠️ Failed to load 3D model for other player ${playerData.username}, using fallback`);
+            console.log(`⚠️ Failed to load Calem model for player ${playerData.username}, using fallback`, error);
             // Fallback to simple capsule
             otherPlayer = BABYLON.MeshBuilder.CreateCapsule(`player_${playerData.userId}`, {
                 radius: 0.5,

@@ -12,6 +12,8 @@ A professional multiplayer Pokemon game inspired by Pokemon Omega Ruby, featurin
 - [Admin Configuration](#admin-configuration)
 - [Chat Commands](#chat-commands)
 - [Development Guide](#development-guide)
+- [Admin Tools Integration](#admin-tools-integration)
+- [Admin Features Testing](#admin-features-testing)
 
 ## 🎯 Overview
 
@@ -20,7 +22,7 @@ This Pokemon MMO is a complete multiplayer game system built with modern web tec
 - **Backend**: Node.js + Express + Socket.io + PostgreSQL
 - **Frontend**: Babylon.js 3D engine with Pokemon ORAS-style camera
 - **Real-time Features**: Live multiplayer, chat system, player movements
-- **Security**: JWT authentication, password validation, role-based permissions
+- **Security**: JWT authentication, bcrypt password hashing
 - **Administration**: Complete admin panel with moderation tools
 
 ## ✨ Features
@@ -188,11 +190,51 @@ this.camera = new BABYLON.ArcRotateCamera(
 - Role badge display
 - System message handling
 
+## 🛠️ Admin Tools Integration
+
+### Overview
+
+Admin users can now access development tools directly from within the game using keyboard shortcuts, without needing to run separate servers.
+
+### Available Admin Tools
+
+1. **UI Editor** - Design and edit user interface components
+2. **Map Editor** - Create and modify game maps
+3. **Monster Editor** - Manage Pokemon data and statistics
+4. **Dialogue Editor** - Create and edit conversation trees
+5. **Admin Panel** - Server management and monitoring dashboard
+
+### Keyboard Shortcuts
+
+As an admin user, you can access these tools using the following keyboard shortcuts:
+
+| Key | Tool | Description |
+|-----|------|-------------|
+| 1 | UI Editor | Opens the UI component design tool |
+| 2 | Map Editor | Opens the map editing tool |
+| 0 | Admin Panel | Opens the server management dashboard |
+| M | Monster Editor | Opens the Pokemon database management tool |
+| L | Dialogue Editor | Opens the node-based conversation editor |
+| 9 | Map Editor (New Tab) | Opens the map editor in a new browser tab |
+| 5 | Random Battle | Starts a random Pokemon battle for testing |
+| 6 | Battle Testing Menu | Shows the battle testing options menu |
+| 7 | Grass Encounter | Simulates a grass encounter (admin only) |
+| 8 | AI Trainer Battle | Starts an AI trainer battle for testing (admin only) |
+
+### Security
+
+- All tools are restricted to admin users only
+- Server-side authentication validates all tool requests
+- Tools are served from the same origin to avoid CORS issues
+- No external servers are required for tool access
+
+For detailed documentation, see [ADMIN_TOOLS_INTEGRATION.md](ADMIN_TOOLS_INTEGRATION.md)
+
 ## 🚀 Setup Instructions
 
 ### 1. Database Setup (PostgreSQL)
 
-```bash
+```
 # Install PostgreSQL (if not already installed)
 # Create database
 createdb pokemon_mmo
@@ -207,19 +249,19 @@ DB_PASSWORD=your_password
 
 ### 2. Install Dependencies
 
-```bash
+```
 npm install
 ```
 
 ### 3. Initialize Database
 
-```bash
+```
 node database/migrate.js
 ```
 
 ### 4. Start the Server
 
-```bash
+```
 # Development mode (with auto-restart)
 npm run dev
 
@@ -307,7 +349,7 @@ To promote other users to admin status, use the `/promote` command:
 
 ### Testing
 
-```bash
+```
 # Start development server
 npm run dev
 

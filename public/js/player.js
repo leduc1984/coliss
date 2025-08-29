@@ -194,10 +194,71 @@ class PlayerController {
                 }
                 if (event.preventDefault) event.preventDefault();
                 break;
+            // Admin tool shortcuts - only available to admin users
+            case 'Digit1':
+            case '1':
+                // Open UI Editor (admin only)
+                if (this.isAdmin) {
+                    console.log('🎨 Opening UI Editor panel...');
+                    this.openAdminToolPanel('UI Editor', '/dev-tools/ui-editor/');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for UI Editor');
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
+            case 'Digit2':
+            case '2':
+                // Open Map Editor (admin only)
+                if (this.isAdmin) {
+                    console.log('🗺️ Opening Map Editor panel...');
+                    this.openAdminToolPanel('Map Editor', '/pokemon-map-editor/');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for Map Editor');
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
             case 'Digit0':
             case '0':
-                // Start random Pokemon battle for testing
-                this.startRandomBattle();
+                // Open Admin Panel (admin only)
+                if (this.isAdmin) {
+                    console.log('🔧 Opening Admin Panel...');
+                    this.openAdminToolPanel('Admin Panel', '/dev-tools/admin-panel/');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for Admin Panel');
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
+            case 'KeyM':
+            case 'm':
+                // Open Monster Editor (admin only)
+                if (this.isAdmin) {
+                    console.log('👾 Opening Monster Editor panel...');
+                    this.openAdminToolPanel('Monster Editor', '/dev-tools/monster-editor/');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for Monster Editor');
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
+            case 'KeyL':
+            case 'l':
+                // Open Dialogue Editor (admin only)
+                if (this.isAdmin) {
+                    console.log('💬 Opening Dialogue Editor panel...');
+                    this.openAdminToolPanel('Dialogue Editor', '/dev-tools/dialogue-editor/');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for Dialogue Editor');
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
+            case 'Digit9':
+            case '9':
+                // Open map editor in new tab (admin only) - keep existing behavior
+                if (this.isAdmin) {
+                    console.log('🗺️ Opening Map Editor in new tab...');
+                    window.open('/pokemon-map-editor/', '_blank');
+                } else {
+                    console.log('🚫 Access denied: Admin privileges required for map editor');
+                }
                 if (event.preventDefault) event.preventDefault();
                 break;
             case 'Digit8':
@@ -232,15 +293,10 @@ class PlayerController {
                 }
                 if (event.preventDefault) event.preventDefault();
                 break;
-            case 'Digit9':
-            case '9':
-                // Open map editor in new tab (admin only)
-                if (this.isAdmin) {
-                    console.log('🗺️ Opening Map Editor in new tab...');
-                    window.open('/pokemon-map-editor/', '_blank');
-                } else {
-                    console.log('🚫 Access denied: Admin privileges required for map editor');
-                }
+            case 'Digit5':
+            case '5':
+                // Start random Pokemon battle for testing (moved from 0)
+                this.startRandomBattle();
                 if (event.preventDefault) event.preventDefault();
                 break;
         }
@@ -537,6 +593,60 @@ class PlayerController {
         if (center) {
             center.classList.toggle('running', this.inputMap.run);
         }
+    }
+    
+    /**
+     * Open an admin tool panel in an iframe overlay
+     * @param {string} toolName - Name of the tool
+     * @param {string} toolPath - Path to the tool
+     */
+    openAdminToolPanel(toolName, toolPath) {
+        // Remove existing tool panel if present
+        const existingPanel = document.getElementById('admin-tool-panel');
+        if (existingPanel) {
+            existingPanel.remove();
+        }
+
+        // Create tool panel container
+        const panel = document.createElement('div');
+        panel.id = 'admin-tool-panel';
+        panel.className = 'admin-tool-panel';
+        
+        // Create panel header
+        const header = document.createElement('div');
+        header.className = 'admin-tool-header';
+        header.innerHTML = `
+            <span class="admin-tool-title">🔧 ${toolName}</span>
+            <button id="close-tool-panel" class="admin-tool-close-btn">&times;</button>
+        `;
+        
+        // Create iframe for tool content
+        const iframe = document.createElement('iframe');
+        iframe.className = 'admin-tool-iframe';
+        iframe.src = toolPath;
+        iframe.title = `${toolName} - Admin Tool`;
+        
+        // Assemble panel
+        panel.appendChild(header);
+        panel.appendChild(iframe);
+        document.body.appendChild(panel);
+        
+        // Add event listeners
+        const closeBtn = panel.querySelector('#close-tool-panel');
+        closeBtn.addEventListener('click', () => {
+            panel.remove();
+        });
+        
+        // Close panel with Escape key
+        const keydownHandler = (e) => {
+            if (e.key === 'Escape') {
+                panel.remove();
+                document.removeEventListener('keydown', keydownHandler);
+            }
+        };
+        document.addEventListener('keydown', keydownHandler);
+        
+        console.log(`✅ ${toolName} panel opened`);
     }
     
     /**

@@ -162,116 +162,27 @@ const upload = multer({
     }
 });
 
-// Pokemon sprites API for map editor
-app.get('/api/pokemon/sprites/:pokemonId', (req, res) => {
-    const pokemonId = req.params.pokemonId;
-    const spritesDir = path.join(__dirname, 'pokemon-map-editor/assets/battlesprites');
-    
-    try {
-        const sprites = {
-            front: null,
-            frontShiny: null,
-            back: null,
-            backShiny: null
-        };
+// Serve dev-tools statically
+app.use('/dev-tools/dialogue-editor', express.static(path.join(__dirname, 'dev-tools/dialogue-editor/build')));
+app.use('/dev-tools/ui-editor', express.static(path.join(__dirname, 'dev-tools/ui-editor/build')));
+app.use('/dev-tools/monster-editor', express.static(path.join(__dirname, 'dev-tools/monster-editor/build')));
+app.use('/dev-tools/admin-panel', express.static(path.join(__dirname, 'dev-tools/admin-panel/build')));
 
-        // Check for different sprite variations
-        const patterns = [
-            { key: 'front', pattern: `${pokemonId}-front-n.gif` },
-            { key: 'frontShiny', pattern: `${pokemonId}-front-s.gif` },
-            { key: 'back', pattern: `${pokemonId}-back-n.gif` },
-            { key: 'backShiny', pattern: `${pokemonId}-back-s.gif` }
-        ];
-
-        patterns.forEach(({ key, pattern }) => {
-            const filePath = path.join(spritesDir, pattern);
-            if (fs.existsSync(filePath)) {
-                sprites[key] = `/pokemon-map-editor/assets/battlesprites/${pattern}`;
-            }
-        });
-
-        // If no normal front sprite, use shiny as fallback
-        if (!sprites.front && sprites.frontShiny) {
-            sprites.front = sprites.frontShiny;
-        }
-
-        res.json(sprites);
-    } catch (error) {
-        console.error('Error fetching sprites:', error);
-        res.status(500).json({ error: 'Failed to fetch sprites' });
-    }
+// Fallback routes for dev-tools
+app.get('/dev-tools/dialogue-editor/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dev-tools/dialogue-editor/build/index.html'));
 });
 
-// Map file upload
-app.post('/api/upload/map', upload.single('mapFile'), (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-
-        res.json({
-            message: 'Map uploaded successfully',
-            filename: req.file.filename,
-            path: `/pokemon-map-editor/uploads/${req.file.filename}`
-        });
-    } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Upload failed' });
-    }
+app.get('/dev-tools/ui-editor/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dev-tools/ui-editor/build/index.html'));
 });
 
-// Save map data
-app.post('/api/save/map', (req, res) => {
-    try {
-        const mapData = req.body;
-        const filename = `map_${Date.now()}.json`;
-        const savesDir = path.join(__dirname, 'pokemon-map-editor/saves');
-        const filepath = path.join(savesDir, filename);
-        
-        // Create saves directory if it doesn't exist
-        if (!fs.existsSync(savesDir)) {
-            fs.mkdirSync(savesDir, { recursive: true });
-        }
-
-        fs.writeFileSync(filepath, JSON.stringify(mapData, null, 2));
-        
-        res.json({
-            message: 'Map saved successfully',
-            filename: filename,
-            path: `/pokemon-map-editor/saves/${filename}`
-        });
-    } catch (error) {
-        console.error('Save error:', error);
-        res.status(500).json({ error: 'Save failed' });
-    }
+app.get('/dev-tools/monster-editor/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dev-tools/monster-editor/build/index.html'));
 });
 
-// API endpoint to list map objects
-app.get('/api/editor/map-objects', (req, res) => {
-    const objectsPath = path.join(__dirname, 'pokemon-map-editor/assets/map_objects');
-    try {
-        const categories = {};
-        const categoryDirs = fs.readdirSync(objectsPath, { withFileTypes: true })
-            .filter(dirent => dirent.isDirectory())
-            .map(dirent => dirent.name);
-
-        for (const categoryName of categoryDirs) {
-            const categoryPath = path.join(objectsPath, categoryName);
-            const glbFiles = fs.readdirSync(categoryPath)
-                .filter(file => file.endsWith('.glb'))
-                .map(file => ({
-                    name: file.replace('.glb', '').replace(/_/g, ' '),
-                    path: `/assets/map_objects/${categoryName}/${file}`
-                }));
-            if (glbFiles.length > 0) {
-               categories[categoryName] = glbFiles;
-            }
-        }
-        res.json(categories);
-    } catch (error) {
-        console.error('Error reading map objects directory:', error);
-        res.status(500).json({ error: 'Failed to read map objects directory' });
-    }
+app.get('/dev-tools/admin-panel/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dev-tools/admin-panel/build/index.html'));
 });
 
 // Serve the main game

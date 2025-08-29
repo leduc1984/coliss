@@ -13,6 +13,9 @@
     "test:map": "node playwright-map-test.js",
     "test:matrix1": "node playwright-matrix1-test.js",
     "test:admin": "node playwright-admin-map-test.js",
+    "test:admin-full": "node playwright-full-admin-test.js",
+    "test:admin-comprehensive": "node comprehensive-admin-test.js",
+    "verify-admin-setup": "node verify-admin-test-setup.js",
     "mcp-server": "node playwright-mcp-server.js"
   },
   "dependencies": {
@@ -51,7 +54,8 @@
     "validator": "^13.9.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "spectorjs": "^0.9.30"
   },
   "keywords": [
     "pokemon",

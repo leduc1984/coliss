@@ -198,29 +198,6 @@ class PlayerController {
                 }
                 if (event.preventDefault) event.preventDefault();
                 break;
-            case 'Digit1':
-            case '1':
-                // Admin map selector (only for admin/co-admin)
-                if (this.isAdmin) {
-                    if (window.adminMapSelector) {
-                        console.log('🗺️ Opening Admin Map Selector...');
-                        window.adminMapSelector.show();
-                    } else {
-                        console.warn('⚠️ Admin Map Selector not available');
-                        // Try to initialize it if gameManager is available
-                        if (window.gameManager && window.AdminMapSelector) {
-                            window.adminMapSelector = new AdminMapSelector(window.gameManager, this.socket);
-                            console.log('🗺️ Admin Map Selector initialized on demand');
-                            window.adminMapSelector.show();
-                        } else {
-                            console.error('❌ Cannot initialize Admin Map Selector: dependencies missing');
-                        }
-                    }
-                } else {
-                    console.log('🚫 Access denied: Admin privileges required for map selector');
-                }
-                if (event.preventDefault) event.preventDefault();
-                break;
             case 'Digit0':
             case '0':
                 // Start random Pokemon battle for testing

@@ -1,63 +1,100 @@
-/**
- * Battle Test - Simple test script to verify battle system integration
- */
+(function() {
+    'use strict';
 
-// Simple test function to verify battle system
-function testBattleSystem() {
-    console.log('🧪 Testing battle system integration...');
-    
-    // Check if BattleModule is available
-    if (typeof BattleModule !== 'undefined') {
-        console.log('✅ BattleModule is available');
-    } else {
-        console.error('❌ BattleModule is not available');
-        return;
-    }
-    
-    // Check if GameManager has battle methods
-    if (window.gameManager) {
-        if (typeof window.gameManager.startPokengineBattle === 'function') {
-            console.log('✅ GameManager has startPokengineBattle method');
-        } else {
-            console.error('❌ GameManager missing startPokengineBattle method');
+    /**
+     * A simple test suite to verify the integration of the battle system.
+     */
+    class BattleSystemTester {
+        constructor() {
+            this.log('Initializing battle system test...');
+            this.waitForGameManager().then(() => {
+                this.runTests();
+            }).catch(error => {
+                console.error(error.message);
+            });
         }
-        
-        if (typeof window.gameManager.endPokengineBattle === 'function') {
-            console.log('✅ GameManager has endPokengineBattle method');
-        } else {
-            console.error('❌ GameManager missing endPokengineBattle method');
+
+        /**
+         * Waits for the global gameManager to be available before running tests.
+         * @returns {Promise} A promise that resolves when gameManager is ready.
+         */
+        waitForGameManager() {
+            return new Promise((resolve, reject) => {
+                const maxRetries = 10;
+                let attempt = 0;
+
+                const check = () => {
+                    if (window.gameManager && window.gameManager.isInitialized) {
+                        this.log('GameManager is available.');
+                        resolve();
+                    } else if (attempt < maxRetries) {
+                        attempt++;
+                        this.log(`Waiting for GameManager... (Attempt ${attempt})`);
+                        setTimeout(check, 1000);
+                    } else {
+                        reject(new Error('❌ Test failed: GameManager did not initialize in time.'));
+                    }
+                };
+                check();
+            });
         }
-    } else {
-        console.error('❌ GameManager is not available');
-    }
-    
-    // Check if battle container exists
-    const battleContainer = document.getElementById('battle-container');
-    if (battleContainer) {
-        console.log('✅ Battle container exists');
-    } else {
-        console.error('❌ Battle container is missing');
-    }
-    
-    console.log('🏁 Battle system test completed');
-}
 
-// Function to check if GameManager is available
-function checkGameManagerAvailable() {
-    if (window.gameManager) {
-        testBattleSystem();
-    } else {
-        // Wait for GameManager to be initialized
-        console.log('⏳ Waiting for GameManager to initialize...');
-        setTimeout(checkGameManagerAvailable, 1000); // Check again in 1 second
-    }
-}
+        /**
+         * Runs all defined tests for the battle system.
+         */
+        runTests() {
+            this.log('🧪 Running battle system integration tests...');
 
-// Run test when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(checkGameManagerAvailable, 500); // Wait a bit after DOM loads
-    });
-} else {
-    setTimeout(checkGameManagerAvailable, 500); // Wait a bit after DOM loads
-}
+            this.testBattleModuleAvailability();
+            this.testGameManagerMethods();
+            this.testBattleContainer();
+
+            this.log('🏁 Battle system test completed.');
+        }
+
+        testBattleModuleAvailability() {
+            this.assert(typeof BattleModule !== 'undefined', 'BattleModule is available');
+        }
+
+        testGameManagerMethods() {
+            this.assert(window.gameManager && typeof window.gameManager.startPokengineBattle === 'function', 'GameManager has startPokengineBattle method');
+            this.assert(window.gameManager && typeof window.gameManager.endPokengineBattle === 'function', 'GameManager has endPokengineBattle method');
+        }
+
+        testBattleContainer() {
+            const battleContainer = document.getElementById('battle-container');
+            this.assert(battleContainer, 'Battle container element exists in the DOM');
+        }
+
+        /**
+         * Custom assertion function for logging test results.
+         * @param {boolean} condition - The condition to test.
+         * @param {string} message - The message to log.
+         */
+        assert(condition, message) {
+            if (condition) {
+                this.log(`✅ PASS: ${message}`);
+            } else {
+                this.log(`❌ FAIL: ${message}`, 'error');
+            }
+        }
+
+        /**
+         * Helper for logging messages to the console.
+         * @param {string} message - The message to log.
+         * @param {string} type - The type of log ('log', 'error', 'warn').
+         */
+        log(message, type = 'log') {
+            const prefix = '[Battle Test]';
+            console[type](`${prefix} ${message}`);
+        }
+    }
+
+    // Run the tests when the DOM is fully loaded.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => new BattleSystemTester());
+    } else {
+        new BattleSystemTester();
+    }
+
+})();

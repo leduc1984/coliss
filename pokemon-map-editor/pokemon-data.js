@@ -16,36 +16,54 @@ class PokemonDataManager {
      */
     async loadPokemonData() {
         try {
-            console.log('Loading Pokemon data from local API...');
+            console.log('Loading Pokemon data from local hardcoded list...');
             
-            // First, let's load some basic Pokemon for now
-            const basicPokemon = [
-                'pikachu', 'charizard', 'blastoise', 'venusaur', 'pidgey', 'rattata',
-                'caterpie', 'weedle', 'spearow', 'ekans', 'sandshrew', 'nidoran-f',
-                'nidoran-m', 'clefairy', 'vulpix', 'jigglypuff', 'zubat', 'oddish',
-                'paras', 'venonat', 'diglett', 'meowth', 'psyduck', 'mankey',
-                'growlithe', 'poliwag', 'abra', 'machop', 'bellsprout', 'tentacool'
+            // Use a bigger list of Pokemon for better selection options
+            const pokemonList = [
+                { id: 1, name: 'bulbasaur', types: ['grass', 'poison'] },
+                { id: 2, name: 'ivysaur', types: ['grass', 'poison'] },
+                { id: 3, name: 'venusaur', types: ['grass', 'poison'] },
+                { id: 4, name: 'charmander', types: ['fire'] },
+                { id: 5, name: 'charmeleon', types: ['fire'] },
+                { id: 6, name: 'charizard', types: ['fire', 'flying'] },
+                { id: 7, name: 'squirtle', types: ['water'] },
+                { id: 8, name: 'wartortle', types: ['water'] },
+                { id: 9, name: 'blastoise', types: ['water'] },
+                { id: 10, name: 'caterpie', types: ['bug'] },
+                { id: 11, name: 'metapod', types: ['bug'] },
+                { id: 12, name: 'butterfree', types: ['bug', 'flying'] },
+                { id: 13, name: 'weedle', types: ['bug', 'poison'] },
+                { id: 14, name: 'kakuna', types: ['bug', 'poison'] },
+                { id: 15, name: 'beedrill', types: ['bug', 'poison'] },
+                { id: 16, name: 'pidgey', types: ['normal', 'flying'] },
+                { id: 17, name: 'pidgeotto', types: ['normal', 'flying'] },
+                { id: 18, name: 'pidgeot', types: ['normal', 'flying'] },
+                { id: 19, name: 'rattata', types: ['normal'] },
+                { id: 20, name: 'raticate', types: ['normal'] },
+                { id: 21, name: 'spearow', types: ['normal', 'flying'] },
+                { id: 22, name: 'fearow', types: ['normal', 'flying'] },
+                { id: 23, name: 'ekans', types: ['poison'] },
+                { id: 24, name: 'arbok', types: ['poison'] },
+                { id: 25, name: 'pikachu', types: ['electric'] },
+                { id: 26, name: 'raichu', types: ['electric'] },
+                { id: 27, name: 'sandshrew', types: ['ground'] },
+                { id: 28, name: 'sandslash', types: ['ground'] },
+                { id: 29, name: 'nidoran-f', types: ['poison'] },
+                { id: 30, name: 'nidorina', types: ['poison'] }
             ];
 
-            this.totalCount = basicPokemon.length;
+            this.totalCount = pokemonList.length;
             
-            for (const pokemonName of basicPokemon) {
-                try {
-                    const response = await fetch(`../api/pokemons/${pokemonName}.json`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.pokemonData.set(pokemonName, data);
-                        this.pokemonList.push({
-                            name: pokemonName,
-                            id: data.id,
-                            displayName: this.formatPokemonName(pokemonName),
-                            types: data.types?.map(t => t.type.name) || []
-                        });
-                        this.loadedCount++;
-                    }
-                } catch (error) {
-                    console.warn(`Failed to load ${pokemonName}:`, error);
-                }
+            // Add all Pokemon to our data structures
+            for (const pokemon of pokemonList) {
+                this.pokemonData.set(pokemon.name, pokemon);
+                this.pokemonList.push({
+                    name: pokemon.name,
+                    id: pokemon.id,
+                    displayName: this.formatPokemonName(pokemon.name),
+                    types: pokemon.types
+                });
+                this.loadedCount++;
             }
 
             // Sort by ID
@@ -70,15 +88,15 @@ class PokemonDataManager {
                       'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 
                       'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'];
         
+        // Create local type data instead of fetching
         for (const typeName of types) {
             try {
-                const response = await fetch(`../api/types/${typeName}.json`);
-                if (response.ok) {
-                    const data = await response.json();
-                    this.typeData.set(typeName, data);
-                }
+                this.typeData.set(typeName, {
+                    name: typeName,
+                    id: types.indexOf(typeName) + 1
+                });
             } catch (error) {
-                console.warn(`Failed to load type ${typeName}:`, error);
+                console.warn(`Failed to create type ${typeName}:`, error);
             }
         }
     }

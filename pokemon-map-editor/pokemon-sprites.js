@@ -5,61 +5,48 @@
 class PokemonSpriteManager {
     constructor() {
         this.spriteCache = new Map();
-        this.availableSprites = new Map();
-        this.loadPromise = null;
+        this.pokemonData = null;
+        this.spriteData = null;
     }
 
     /**
-     * Initialize the sprite manager
+     * Load JSON sprite index to allow more optimized selection later on.
+     * Also includes optional game name prefix which gets converted
+     * to URL directory by splitting game on "-"
+     * @returns true or error, null before fully done or failure to get all sources.
      */
-    async initialize() {
-        if (this.loadPromise) {
-            return this.loadPromise;
-        }
+    async initialize(gamePrefix='') {
+        if (this.spriteData) {return;}
+        
+        const spriteDataResult = gamePrefix.match("master-game") ? 
+            await fetch('/poke-battle/battle/images/animated/pokemon/battlesprites/master-game.json') :
+            await fetch('/poke-battle/battle/images/animated/pokemon/battlesprites/sprites.json');
+        const spriteData = await spriteDataResult.json();
 
-        this.loadPromise = this.loadAvailableSprites();
-        return this.loadPromise;
+        const gameDir = gamePrefix.split('-').join('/');
+        const pokemonDataResult = await fetch(`/${gameDir}/assets/pokemon.json`);
+        const pokemonData = await pokemonDataResult.json();
+
+        this.spriteData = spriteData;
+        this.pokemonData = pokemonData;
+
+        return true;
     }
 
     /**
-     * Load available sprites from the local PokemonDataManager
+     * Get sprite path for a Pokemon based on its ID
      */
-    async loadAvailableSprites() {
-        try {
-            console.log('Loading available Pokemon sprites from local data...');
-            
-            // Use the global pokemonDataManager instance from pokemon-data.js
-            if (typeof pokemonDataManager === 'undefined' || !pokemonDataManager.getPokemonList) {
-                throw new Error('PokemonDataManager is not available.');
-            }
+    getPokemonSpritePath(id) {
+        // Use the battle sprites from poke-battle directory
+        return `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-front-s.gif`;
+    }
 
-            // Load data if it hasn't been loaded yet
-            if (pokemonDataManager.getPokemonList().length === 0) {
-                await pokemonDataManager.loadPokemonData();
-            }
-            
-            const pokemonList = pokemonDataManager.getPokemonList();
-
-            if (pokemonList.length === 0) {
-                console.warn("No Pokemon data found in PokemonDataManager.");
-                return this.availableSprites;
-            }
-            
-            pokemonList.forEach(pokemon => {
-                this.availableSprites.set(pokemon.id, {
-                    id: pokemon.id,
-                    name: pokemon.displayName,
-                    hasSprites: true, // Assume sprites exist for local data
-                    defaultSpritePath: `/assets/battlesprites/${pokemon.id}-front-s.gif`
-                });
-            });
-
-            console.log(`Loaded ${this.availableSprites.size} Pokemon sprites from local data`);
-            return this.availableSprites;
-        } catch (error) {
-            console.error('Error loading sprites from local data:', error);
-            throw error;
-        }
+    /**
+     * Get box icon path for a Pokemon based on its ID
+     */
+    getBoxIconPath(id) {
+        // Use the correct path to monster icons
+        return `/pokemon-map-editor/assets/box/sprites/monstericons/icon_${id}.png`;
     }
 
     /**
@@ -72,113 +59,64 @@ class PokemonSpriteManager {
             return this.spriteCache.get(id);
         }
 
-        try {
-            const response = await fetch(`/api/pokemon/sprites/${id}`);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load sprites for Pokemon ${id}`);
-            }
-            
-            const sprites = await response.json();
-            this.spriteCache.set(id, sprites);
-            return sprites;
-        } catch (error) {
-            console.error(`Error loading sprites for Pokemon ${id}:`, error);
-            return this.getDefaultSprites(id);
-        }
+        // Create sprites object with paths to actual sprite images
+        const basePath = this.getPokemonSpritePath(id);
+        const sprites = {
+            front: basePath,
+            frontShiny: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-front-s-shiny.gif`,
+            back: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-back-s.gif`,
+            backShiny: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-back-s-shiny.gif`,
+            // Box sprites for PC and Pokedex using the correct path
+            boxSprite: this.getBoxIconPath(id)
+        };
+        
+        this.spriteCache.set(id, sprites);
+        return sprites;
     }
 
     /**
-     * Get default sprites structure
+     * Get default sprites structure as fallback
      */
     getDefaultSprites(pokemonId) {
         const id = parseInt(pokemonId);
         return {
-            front: `/assets/battlesprites/${id}-front-s.gif`,
-            frontShiny: `/assets/battlesprites/${id}-front-s.gif`,
-            back: null,
-            backShiny: null,
-            frontFemale: null,
-            frontMale: null
+            front: this.getPokemonSpritePath(id),
+            frontShiny: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-front-s-shiny.gif`,
+            back: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-back-s.gif`,
+            backShiny: `/poke-battle/battle/images/animated/pokemon/battlesprites/${id}-back-s-shiny.gif`,
+            boxSprite: this.getBoxIconPath(id)
         };
     }
 
     /**
-     * Get the best available front sprite for a Pokemon
-     */
-    async getBestFrontSprite(pokemonId, options = {}) {
-        const sprites = await this.getPokemonSprites(pokemonId);
-        const { shiny = false, gender = null } = options;
-
-        // Priority order for sprite selection
-        if (shiny) {
-            if (gender === 'female' && sprites.frontShinyFemale) return sprites.frontShinyFemale;
-            if (gender === 'male' && sprites.frontShinyMale) return sprites.frontShinyMale;
-            if (sprites.frontShiny) return sprites.frontShiny;
-        }
-
-        if (gender === 'female' && sprites.frontFemale) return sprites.frontFemale;
-        if (gender === 'male' && sprites.frontMale) return sprites.frontMale;
-        if (sprites.front) return sprites.front;
-        if (sprites.frontShiny) return sprites.frontShiny;
-
-        // Fallback to default
-        return this.getDefaultSprites(pokemonId).front;
-    }
-
-    /**
-     * Check if a Pokemon has sprites available
-     */
-    hasPokemonSprites(pokemonId) {
-        const id = parseInt(pokemonId);
-        return this.availableSprites.has(id);
-    }
-
-    /**
-     * Get list of Pokemon with available sprites
+     * Get all available Pokemon from the sprite data
      */
     getAvailablePokemon() {
-        return Array.from(this.availableSprites.values())
-            .sort((a, b) => a.id - b.id);
+        return Object.values(this.pokemonData);
     }
 
     /**
-     * Create an HTML image element for a Pokemon sprite
+     * Get the best front sprite for a Pokemon
      */
-    async createSpriteElement(pokemonId, options = {}) {
+    async getBestFrontSprite(pokemonId, options = {}) {
         const {
-            width = 96,
-            height = 96,
-            className = 'pokemon-sprite',
             shiny = false,
             gender = null,
-            title = null
+            useBoxSprite = false
         } = options;
 
-        const spritePath = await this.getBestFrontSprite(pokemonId, { shiny, gender });
-        
-        const img = document.createElement('img');
-        img.src = spritePath;
-        img.className = className;
-        img.style.width = `${width}px`;
-        img.style.height = `${height}px`;
-        img.style.imageRendering = 'pixelated'; // Keep pixel art crisp
-        img.style.objectFit = 'contain';
-        
-        if (title) {
-            img.title = title;
-            img.alt = title;
-        } else {
-            img.alt = `Pokemon ${pokemonId}`;
+        const sprites = await this.getPokemonSprites(pokemonId);
+        let spritePath = sprites.front;
+
+        if (shiny) {
+            spritePath = sprites.frontShiny;
         }
 
-        // Add error handling
-        img.onerror = () => {
-            console.warn(`Failed to load sprite for Pokemon ${pokemonId}, using fallback`);
-            img.src = this.getDefaultSprites(pokemonId).front;
-        };
+        if (useBoxSprite) {
+            spritePath = sprites.boxSprite;
+        }
 
-        return img;
+        return spritePath;
     }
 
     /**
@@ -196,104 +134,210 @@ class PokemonSpriteManager {
         const pokemonList = this.getAvailablePokemon();
         container.innerHTML = '<div class="sprite-selector-header">Select Pokemon:</div>';
 
+        // Add view toggle buttons
+        const viewToggleContainer = document.createElement('div');
+        viewToggleContainer.className = 'view-toggle-container';
+        viewToggleContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        `;
+
+        const battleViewBtn = document.createElement('button');
+        battleViewBtn.textContent = 'Battle Sprites';
+        battleViewBtn.className = 'view-toggle-btn active';
+        battleViewBtn.style.cssText = `
+            padding: 5px 10px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            background: #4a4a4a;
+            color: white;
+            cursor: pointer;
+        `;
+
+        const boxViewBtn = document.createElement('button');
+        boxViewBtn.textContent = 'Box Sprites';
+        boxViewBtn.className = 'view-toggle-btn';
+        boxViewBtn.style.cssText = `
+            padding: 5px 10px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            background: #333;
+            color: #ccc;
+            cursor: pointer;
+        `;
+
+        viewToggleContainer.appendChild(battleViewBtn);
+        viewToggleContainer.appendChild(boxViewBtn);
+        container.appendChild(viewToggleContainer);
+
+        // Create sprite grid
         const gridContainer = document.createElement('div');
         gridContainer.className = 'sprite-grid';
         gridContainer.style.cssText = `
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             gap: 5px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             padding: 10px;
             background: #1a1a1a;
             border-radius: 5px;
         `;
 
-        for (const pokemon of pokemonList.slice(0, 151)) { // First 151 Pokemon
-            const spriteContainer = document.createElement('div');
-            spriteContainer.className = 'sprite-option';
-            spriteContainer.style.cssText = `
-                text-align: center;
-                cursor: pointer;
-                padding: 5px;
-                border-radius: 3px;
-                border: 2px solid transparent;
-                transition: all 0.2s;
-            `;
+        // Track current view mode
+        let useBoxSprites = false;
 
-            spriteContainer.addEventListener('mouseenter', () => {
-                spriteContainer.style.borderColor = '#0078d4';
-                spriteContainer.style.backgroundColor = '#2a2a2a';
-            });
-
-            spriteContainer.addEventListener('mouseleave', () => {
-                spriteContainer.style.borderColor = 'transparent';
-                spriteContainer.style.backgroundColor = 'transparent';
-            });
-
-            spriteContainer.addEventListener('click', () => {
-                if (callback) {
-                    callback(pokemon.id, pokemon);
-                }
-            });
-
-            try {
-                const spriteImg = await this.createSpriteElement(pokemon.id, {
-                    width: 64,
-                    height: 64,
-                    title: `#${pokemon.id}`
-                });
-
-                const label = document.createElement('div');
-                label.textContent = `#${pokemon.id}`;
-                label.style.cssText = `
-                    font-size: 10px;
-                    color: #ccc;
-                    margin-top: 2px;
+        // Function to update the grid with appropriate sprites
+        const updateGrid = async () => {
+            gridContainer.innerHTML = '';
+            
+            for (const pokemon of pokemonList.slice(0, 151)) { // First 151 Pokemon
+                const spriteContainer = document.createElement('div');
+                spriteContainer.className = 'sprite-option';
+                spriteContainer.style.cssText = `
+                    text-align: center;
+                    cursor: pointer;
+                    padding: 5px;
+                    border-radius: 3px;
+                    border: 2px solid transparent;
+                    transition: all 0.2s;
+                    background: rgba(20, 20, 20, 0.6);
                 `;
 
-                spriteContainer.appendChild(spriteImg);
-                spriteContainer.appendChild(label);
-                gridContainer.appendChild(spriteContainer);
-            } catch (error) {
-                console.warn(`Failed to create sprite for Pokemon ${pokemon.id}`);
-            }
-        }
+                spriteContainer.addEventListener('mouseenter', () => {
+                    spriteContainer.style.borderColor = '#0078d4';
+                    spriteContainer.style.backgroundColor = '#2a2a2a';
+                });
 
+                spriteContainer.addEventListener('mouseleave', () => {
+                    spriteContainer.style.borderColor = 'transparent';
+                    spriteContainer.style.backgroundColor = 'rgba(20, 20, 20, 0.6)';
+                });
+
+                spriteContainer.addEventListener('click', () => {
+                    if (callback) {
+                        callback(pokemon.id, pokemon);
+                    }
+                });
+
+                try {
+                    const spriteImg = await this.createSpriteElement(pokemon.id, {
+                        width: 64,
+                        height: 64,
+                        title: `#${pokemon.id} ${pokemon.name}`,
+                        useBoxSprite: useBoxSprites
+                    });
+
+                    const label = document.createElement('div');
+                    label.textContent = pokemon.name.length > 10 
+                        ? `#${pokemon.id} ${pokemon.name.substring(0, 8)}...` 
+                        : `#${pokemon.id} ${pokemon.name}`;
+                    label.style.cssText = `
+                        font-size: 11px;
+                        color: #ccc;
+                        margin-top: 4px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    `;
+
+                    spriteContainer.appendChild(spriteImg);
+                    spriteContainer.appendChild(label);
+                    gridContainer.appendChild(spriteContainer);
+                } catch (error) {
+                    console.warn(`Failed to create sprite for Pokemon ${pokemon.id}`, error);
+                }
+            }
+        };
+
+        // Add toggle button event listeners
+        battleViewBtn.addEventListener('click', () => {
+            useBoxSprites = false;
+            battleViewBtn.className = 'view-toggle-btn active';
+            battleViewBtn.style.background = '#4a4a4a';
+            battleViewBtn.style.color = 'white';
+            boxViewBtn.className = 'view-toggle-btn';
+            boxViewBtn.style.background = '#333';
+            boxViewBtn.style.color = '#ccc';
+            updateGrid();
+        });
+
+        boxViewBtn.addEventListener('click', () => {
+            useBoxSprites = true;
+            boxViewBtn.className = 'view-toggle-btn active';
+            boxViewBtn.style.background = '#4a4a4a';
+            boxViewBtn.style.color = 'white';
+            battleViewBtn.className = 'view-toggle-btn';
+            battleViewBtn.style.background = '#333';
+            battleViewBtn.style.color = '#ccc';
+            updateGrid();
+        });
+
+        // Initial grid population
+        await updateGrid();
         container.appendChild(gridContainer);
     }
 
     /**
-     * Preload commonly used sprites
+     * Create an HTML image element for a Pokemon sprite
      */
-    async preloadCommonSprites() {
-        const commonPokemon = [1, 4, 7, 25, 150, 151]; // Starter Pokemon + Pikachu + Legendaries
-        
-        const preloadPromises = commonPokemon.map(async (id) => {
-            try {
-                await this.getPokemonSprites(id);
-            } catch (error) {
-                console.warn(`Failed to preload Pokemon ${id}`);
-            }
-        });
+    async createSpriteElement(pokemonId, options = {}) {
+        const {
+            width = 96,
+            height = 96,
+            className = 'pokemon-sprite',
+            shiny = false,
+            gender = null,
+            title = null,
+            useBoxSprite = false
+        } = options;
 
-        await Promise.all(preloadPromises);
-        console.log('Common sprites preloaded');
+        const spritePath = await this.getBestFrontSprite(pokemonId, { 
+            shiny, 
+            gender,
+            useBoxSprite
+        });
+        
+        const img = document.createElement('img');
+        img.src = spritePath;
+        img.className = className + (useBoxSprite ? ' box-sprite' : ' battle-sprite');
+        img.style.width = `${width}px`;
+        img.style.height = `${height}px`;
+        img.style.imageRendering = useBoxSprite ? 'pixelated' : 'auto'; // Keep pixel art crisp for box sprites
+        img.style.objectFit = 'contain';
+        
+        if (title) {
+            img.title = title;
+            img.alt = title;
+        } else {
+            img.alt = `Pokemon ${pokemonId}`;
+        }
+
+        // Add error handling
+        img.onerror = () => {
+            console.warn(`Failed to load sprite for Pokemon ${pokemonId}, using fallback`);
+            // Try to use the master pokedex image as fallback
+            img.src = '/pokemon-map-editor/assets/box/master_pokedex.png';
+            // Adjust the CSS to show only the relevant portion of the master image
+            if (useBoxSprite) {
+                const id = parseInt(pokemonId);
+                // Calculate position in the sprite sheet based on ID
+                // This is an approximate calculation and might need adjustment based on the actual sprite sheet
+                const row = Math.floor((id - 1) / 25);
+                const col = (id - 1) % 25;
+                img.style.objectFit = 'none';
+                img.style.objectPosition = `-${col * 32}px -${row * 32}px`;
+                img.style.width = '32px';
+                img.style.height = '32px';
+                img.style.transform = 'scale(2)';
+                img.style.transformOrigin = 'center';
+                img.style.imageRendering = 'pixelated';
+            }
+        };
+
+        return img;
     }
 }
-
-// Global sprite manager instance
-const pokemonSpriteManager = new PokemonSpriteManager();
-
-// Auto-initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await pokemonSpriteManager.initialize();
-        console.log('Pokemon Sprite Manager initialized successfully');
-        
-        // Preload common sprites in background
-        pokemonSpriteManager.preloadCommonSprites();
-    } catch (error) {
-        console.error('Failed to initialize Pokemon Sprite Manager:', error);
-    }
-});

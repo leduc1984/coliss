@@ -2076,13 +2076,19 @@ class GameManager {
     }
 
     setupUI() {
-        document.getElementById('playerRole').textContent = this.user.role;
-        document.getElementById('playerRole').className = `role-badge role-${this.user.role}`;
+        // Safely update player role display
+        const playerRoleElement = document.getElementById('playerRole');
+        if (playerRoleElement) {
+            playerRoleElement.textContent = this.user.role;
+            playerRoleElement.className = `role-badge role-${this.user.role}`;
+        }
         
         // Show admin controls if user is admin or co-admin
         if (this.user.role === 'admin' || this.user.role === 'co-admin') {
-            document.getElementById('adminControls').style.display = 'block';
-            
+            const adminControlsElement = document.getElementById('adminControls');
+            if (adminControlsElement) {
+                adminControlsElement.style.display = 'block';
+            }
             
             // Initialize admin map selector
             if (window.AdminMapSelector) {
@@ -2092,9 +2098,12 @@ class GameManager {
         }
         
         // Setup logout button
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            window.authManager.logout();
-        });
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                window.authManager.logout();
+            });
+        }
         
         console.log('UI initialized');
     }

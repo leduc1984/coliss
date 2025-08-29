@@ -18,6 +18,90 @@
     display: block;
 }
 
+/* Admin Battle Test Menu */
+.admin-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+}
+
+.admin-menu-panel {
+    background: #2c2c2c;
+    border-radius: 12px;
+    border: 1px solid #444;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 90%;
+    max-width: 400px;
+    overflow: hidden;
+}
+
+.admin-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #333;
+    border-bottom: 1px solid #444;
+}
+
+.admin-menu-header h3 {
+    margin: 0;
+    color: #FFD700;
+    font-size: 18px;
+}
+
+.admin-menu-close-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.admin-menu-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-menu-content p {
+    margin: 0 0 10px;
+    color: #ccc;
+    text-align: center;
+}
+
+.admin-menu-btn {
+    background-color: #4a4a4a;
+    color: white;
+    border: 1px solid #666;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    text-align: center;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.admin-menu-btn:hover {
+    background-color: #5a5a5a;
+}
+
+.admin-menu-btn:active {
+    background-color: #6a6a6a;
+    transform: scale(0.98);
+}
+
 .debug-overlay h4 {
     margin: 0 0 10px 0;
     color: #FFD700;

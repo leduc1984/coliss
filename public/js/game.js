@@ -298,11 +298,15 @@ class GameManager {
         
         // Environment setup (with error handling)
         try {
-            this.scene.createDefaultEnvironment({
-                skyboxSize: 1000,
-                createGround: false,
-                enableGroundShadow: false
-            });
+            // Add a skybox for a more complete environment
+            const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000.0 }, this.scene);
+            const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", this.scene);
+            skyboxMaterial.backFaceCulling = false;
+            skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("https://www.babylonjs-playground.com/textures/skybox", this.scene);
+            skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+            skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+            skybox.material = skyboxMaterial;
         } catch (environmentError) {
             console.warn('⚠️ Environment setup failed:', environmentError.message);
             // Continue without environment if setup fails
@@ -1821,7 +1825,7 @@ class GameManager {
             
             // Phase 2: Ajuster l'échelle
             // "Une fois le modèle chargé, ajuste son échelle si nécessaire pour qu'il ait la bonne taille dans le monde"
-            this.player.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2); // Échelle optimale pour Calem
+            this.player.scaling = new BABYLON.Vector3(1.5, 1.5, 1.5); // Adjusted for better proportions
             
             // Spawn player at the specific spawn point on matrix1 map
             // Set the player's initial position to these coordinates
@@ -1853,6 +1857,8 @@ class GameManager {
             
             // Phase 2: Activer les collisions
             // "Assure-toi que le mesh du joueur a les collisions activées"
+            this.player.physicsImpostor = new BABYLON.PhysicsImpostor(this.player, BABYLON.PhysicsImpostor.CapsuleImpostor, { mass: 1, restitution: 0.1, friction: 0.5 }, this.scene);
+            this.player.physicsImpostor.physicsBody.angularDamping = 0.9;
             this.player.checkCollisions = true;
             this.player.ellipsoid = new BABYLON.Vector3(0.4, 0.8, 0.4); // Calem-specific collision box
             this.player.ellipsoidOffset = new BABYLON.Vector3(0, 0.8, 0);
@@ -2070,25 +2076,20 @@ class GameManager {
         
         // Phase 2: Initialiser l'Animation Mixer
         // "Arrête toutes les animations par défaut (animationGroup.stop()) et lance l'animation "idle" en boucle."
-        // Start with idle animation and configure for smooth looping
+        // Start all animations, but only give weight to idle
         if (this.playerAnimations.idle && !this.playerAnimations.idle.isDisposed) {
-            // Configure idle animation for smooth looping
-            this.playerAnimations.idle.speedRatio = 1.0;
-            this.playerAnimations.idle.setWeightForAllAnimatables(1.0);
             this.playerAnimations.idle.start(true, 1.0, this.playerAnimations.idle.from, this.playerAnimations.idle.to, false);
+            this.playerAnimations.idle.setWeightForAllAnimatables(1.0);
             this.currentPlayerAnimation = 'idle';
-            console.log('✅ Started Calem idle animation');
         }
-        
-        // Configure walk animation for smooth looping
+
         if (this.playerAnimations.walk && !this.playerAnimations.walk.isDisposed) {
-            this.playerAnimations.walk.speedRatio = 1.2; // Slightly faster for natural feel
+            this.playerAnimations.walk.start(true, 1.2, this.playerAnimations.walk.from, this.playerAnimations.walk.to, false);
             this.playerAnimations.walk.setWeightForAllAnimatables(0.0);
         }
-        
-        // Configure run animation for smooth looping
+
         if (this.playerAnimations.run && !this.playerAnimations.run.isDisposed) {
-            this.playerAnimations.run.speedRatio = 1.5; // Faster for running
+            this.playerAnimations.run.start(true, 1.5, this.playerAnimations.run.from, this.playerAnimations.run.to, false);
             this.playerAnimations.run.setWeightForAllAnimatables(0.0);
         }
         
@@ -2097,53 +2098,44 @@ class GameManager {
 
     // Method to change player animation with smooth transitions
     setPlayerAnimation(animationType) {
-        if (!this.playerAnimations) {
-            return; // No animations available
-        }
-        
-        // Check if animations system is properly initialized
-        if (!this.scene || this.scene.isDisposed) {
-            console.warn('⚠️ Scene is disposed, cannot change animation');
+        if (!this.playerAnimations || this.currentPlayerAnimation === animationType) {
             return;
         }
-        
-        // Enhanced animation transition system for Calem model
+
         const targetAnim = this.playerAnimations[animationType];
         if (!targetAnim || targetAnim.isDisposed) {
-            console.warn(`⚠️ Animation type "${animationType}" not found or disposed in Calem model`);
+            console.warn(`⚠️ Animation type "${animationType}" not found or disposed.`);
             return;
         }
+
+        // Use animation blending for smooth transitions
+        const currentAnim = this.playerAnimations[this.currentPlayerAnimation];
         
-        // Only change animation if it's different from current
-        if (this.currentPlayerAnimation === animationType) {
-            return;
+        if (currentAnim && !currentAnim.isDisposed) {
+            BABYLON.Animation.CreateAndStartAnimation(
+                `anim_weight_out_${this.currentPlayerAnimation}`,
+                currentAnim,
+                'weight',
+                30,
+                10,
+                currentAnim.weight,
+                0,
+                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
         }
         
-        // FIX: Implement a more robust method that loops through all animations,
-        // setting the weight of the target animation to 1 and all others to 0
-        Object.keys(this.playerAnimations).forEach(key => {
-            const anim = this.playerAnimations[key];
-            if (anim && !anim.isDisposed) {
-                if (anim === targetAnim) {
-                    // Set target animation weight to 1
-                    anim.setWeightForAllAnimatables(1.0);
-                    // Start the animation if it's not already playing
-                    if (!anim.isStarted) {
-                        anim.start(true, anim.speedRatio || 1.0, anim.from, anim.to, false);
-                    }
-                } else {
-                    // Set all other animations weight to 0
-                    anim.setWeightForAllAnimatables(0.0);
-                    // Stop the animation
-                    if (anim.isStarted) {
-                        anim.stop();
-                    }
-                }
-            }
-        });
-        
+        BABYLON.Animation.CreateAndStartAnimation(
+            `anim_weight_in_${animationType}`,
+            targetAnim,
+            'weight',
+            30,
+            10,
+            targetAnim.weight,
+            1,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+
         this.currentPlayerAnimation = animationType;
-        console.log(`🎬 Calem ${animationType} animation started with smooth transition`);
     }
 
     setupControls() {

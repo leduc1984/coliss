@@ -22,32 +22,42 @@ class PokemonSpriteManager {
     }
 
     /**
-     * Load available sprites from the server
+     * Load available sprites from the local PokemonDataManager
      */
     async loadAvailableSprites() {
         try {
-            console.log('Loading available Pokemon sprites...');
-            const response = await fetch('/api/pokemon/list');
+            console.log('Loading available Pokemon sprites from local data...');
             
-            if (!response.ok) {
-                throw new Error(`Failed to load sprite list: ${response.status}`);
+            // Use the global pokemonDataManager instance from pokemon-data.js
+            if (typeof pokemonDataManager === 'undefined' || !pokemonDataManager.getPokemonList) {
+                throw new Error('PokemonDataManager is not available.');
+            }
+
+            // Load data if it hasn't been loaded yet
+            if (pokemonDataManager.getPokemonList().length === 0) {
+                await pokemonDataManager.loadPokemonData();
             }
             
-            const pokemonList = await response.json();
+            const pokemonList = pokemonDataManager.getPokemonList();
+
+            if (pokemonList.length === 0) {
+                console.warn("No Pokemon data found in PokemonDataManager.");
+                return this.availableSprites;
+            }
             
             pokemonList.forEach(pokemon => {
                 this.availableSprites.set(pokemon.id, {
                     id: pokemon.id,
-                    name: pokemon.name,
-                    hasSprites: pokemon.hasSprites,
-                    defaultSpritePath: pokemon.spritePath
+                    name: pokemon.displayName,
+                    hasSprites: true, // Assume sprites exist for local data
+                    defaultSpritePath: `/assets/battlesprites/${pokemon.id}-front-s.gif`
                 });
             });
 
-            console.log(`Loaded ${this.availableSprites.size} Pokemon with sprites`);
+            console.log(`Loaded ${this.availableSprites.size} Pokemon sprites from local data`);
             return this.availableSprites;
         } catch (error) {
-            console.error('Error loading sprites:', error);
+            console.error('Error loading sprites from local data:', error);
             throw error;
         }
     }

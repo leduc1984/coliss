@@ -298,6 +298,88 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function loadMapObjects() {
+        fetch('/api/editor/map-objects')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load map objects');
+                }
+                return response.json();
+            })
+            .then(categories => {
+                const mapObjectsPanel = document.getElementById('mapObjectsPanel');
+                const container = mapObjectsPanel.querySelector('.object-categories');
+                container.innerHTML = ''; // Clear existing placeholders
+
+                for (const categoryName in categories) {
+                    const categoryData = categories[categoryName];
+
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'object-category';
+
+                    const categoryTitle = document.createElement('h4');
+                    categoryTitle.textContent = categoryName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    categoryDiv.appendChild(categoryTitle);
+
+                    const objectGrid = document.createElement('div');
+                    objectGrid.className = 'object-grid';
+
+                    categoryData.forEach(object => {
+                        const objectItem = document.createElement('div');
+                        objectItem.className = 'object-item';
+                        objectItem.dataset.object = object.path; // Store the full path
+
+                        const thumbnail = document.createElement('div');
+                        thumbnail.className = 'object-thumbnail';
+                        // For now, use a generic icon. A better solution might be to generate thumbnails.
+                        thumbnail.textContent = '📦';
+                        objectItem.appendChild(thumbnail);
+
+                        const name = document.createElement('div');
+                        name.className = 'object-name';
+                        name.textContent = object.name;
+                        objectItem.appendChild(name);
+
+                        objectItem.addEventListener('click', () => {
+                            placeObject(object.name, object.path);
+                        });
+
+                        objectGrid.appendChild(objectItem);
+                    });
+
+                    categoryDiv.appendChild(objectGrid);
+                    container.appendChild(categoryDiv);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading map objects:', error);
+                const container = document.getElementById('mapObjectsPanel').querySelector('.object-categories');
+                container.innerHTML = '<p style="color: red;">Error loading objects.</p>';
+            });
+    }
+
+    function placeObject(name, path) {
+        BABYLON.SceneLoader.ImportMesh(null, "", path, scene, (meshes) => {
+            const newMesh = meshes.find(m => m.getTotalVertices() > 0);
+            if (!newMesh) return;
+
+            const centerPick = scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2, (m) => !m.isGizmo);
+            newMesh.position = centerPick.pickedPoint || editorCam.getTarget();
+
+            const bounds = newMesh.getHierarchyBoundingVectors();
+            const heightOffset = newMesh.position.y - bounds.min.y;
+            newMesh.position.y += heightOffset;
+
+            newMesh.instanceId = generateUUID();
+            newMesh.objectId = name;
+            newMesh.name = name + "_" + loadedMeshes.length;
+            loadedMeshes.push(newMesh);
+            buildMeshUI();
+            saveStateToHistory();
+            selectMesh(newMesh);
+        });
+    }
+
     function initUI() {
         const meshSearch = document.getElementById('meshSearch');
         if (meshSearch) {

@@ -373,7 +373,10 @@
             document.getElementById('playerRole').className = `role-badge role-${this.user.role}`;
             
             if (this.user.role === 'admin' || this.user.role === 'co-admin') {
-                document.getElementById('adminControls').style.display = 'block';
+                const adminControls = document.getElementById('adminControls');
+                if (adminControls) {
+                    adminControls.style.display = 'block';
+                }
                 if (window.AdminMapSelector) {
                     window.adminMapSelector = new AdminMapSelector(this, this.socket);
                 }

@@ -4,7 +4,7 @@
 
     // --- Configuration Object ---
     const Config = {
-        DEFAULT_MAP: 'matrix1',
+        DEFAULT_MAP: 'drewfort',
         PLAYER_MODEL_PATH: 'calem/calem.glb',
         PLAYER_MODEL_SCALE: new BABYLON.Vector3(1.5, 1.5, 1.5),
         PLAYER_CAPSULE_IMPOSTOR: { mass: 1, restitution: 0.1, friction: 0.5 },
@@ -46,18 +46,18 @@
         ORAS_CAMERA_SETTINGS: {
             alpha: -Math.PI / 2,
             beta: Math.PI / 4,
-            radius: 25,
+            radius: 50, // Increased from 25 for a more distant view
             lowerBetaLimit: Math.PI / 4,
             upperBetaLimit: Math.PI / 4,
-            lowerRadiusLimit: 25,
-            upperRadiusLimit: 25,
+            lowerRadiusLimit: 20, // Allow zooming in
+            upperRadiusLimit: 75, // Allow zooming out
             lowerAlphaLimit: -Math.PI / 2,
             upperAlphaLimit: -Math.PI / 2,
             inertia: 0,
             angularSensibilityX: 0,
             angularSensibilityY: 0,
             panningSensibility: 0,
-            wheelPrecision: 0,
+            wheelPrecision: 10, // Enable mouse wheel zoom
             pinchPrecision: 0,
         },
     };
@@ -306,8 +306,9 @@
                 if (result.meshes.length === 0) throw new Error('Player model has no meshes.');
 
                 this.player = result.meshes[0];
+                this.player.isVisible = true; // Explicitly set visibility for the root mesh
                 this.player.scaling = Config.PLAYER_MODEL_SCALE;
-                this.player.position = new BABYLON.Vector3(-14.33, 1.0, -25.22); // Default spawn
+                this.player.position = new BABYLON.Vector3(0, 5, 0); // Default spawn at a safe, central position
                 this.player.getChildMeshes().forEach(m => m.visibility = 1.0);
 
                 this.player.physicsImpostor = new BABYLON.PhysicsImpostor(this.player, BABYLON.PhysicsImpostor.CapsuleImpostor, Config.PLAYER_CAPSULE_IMPOSTOR, this.scene);

@@ -6,8 +6,9 @@ const crypto = require('crypto');
  * Gère la création, le déroulement et la fin des combats
  */
 class BattleService {
-    constructor(io) {
+    constructor(io, redisClient = null) {
         this.io = io;
+        this.redisClient = redisClient;
         this.activeBattles = new Map(); // Map de battleId -> BattleRoom
         this.waitingPlayers = new Set(); // Joueurs en attente de combat
         this.playerToBattle = new Map(); // Map userId -> battleId
@@ -203,7 +204,47 @@ class BattleService {
             
             // Supprimer la bataille
             this.activeBattles.delete(battleId);
+            
+            // Nettoyer le cache Redis si disponible
+            if (this.redisClient && this.redisClient.isReady) {
+                this.redisClient.del(`battle:${battleId}`);
+            }
         }
+    }
+    
+    /**
+     * Cache les données de bataille dans Redis
+     */
+    async cacheBattleData(battleId, data) {
+        if (!this.redisClient || !this.redisClient.isReady) return;
+        
+        try {
+            const cacheKey = `battle:${battleId}`;
+            await this.redisClient.setEx(cacheKey, 3600, JSON.stringify(data));
+            console.log(`💾 Battle data cached: ${battleId}`);
+        } catch (error) {
+            console.error('Redis caching error:', error);
+        }
+    }
+    
+    /**
+     * Récupère les données de bataille depuis Redis
+     */
+    async getCachedBattleData(battleId) {
+        if (!this.redisClient || !this.redisClient.isReady) return null;
+        
+        try {
+            const cacheKey = `battle:${battleId}`;
+            const cachedData = await this.redisClient.get(cacheKey);
+            
+            if (cachedData) {
+                return JSON.parse(cachedData);
+            }
+        } catch (error) {
+            console.error('Redis fetch error:', error);
+        }
+        
+        return null;
     }
 
     /**
@@ -220,6 +261,26 @@ class BattleService {
             // Vérifier si le joueur est déjà en bataille
             if (this.playerToBattle.has(socket.user.id)) {
                 throw new Error('Already in battle');
+            }
+            
+            // Vérifier le cache Redis pour les informations de bataille récentes
+            if (this.redisClient && this.redisClient.isReady) {
+                const recentBattleKey = `recent_battle:${socket.user.id}_${targetUserId}`;
+                const recentBattle = await this.redisClient.get(recentBattleKey);
+                
+                if (recentBattle) {
+                    const battleData = JSON.parse(recentBattle);
+                    const timeSinceLastBattle = Date.now() - battleData.timestamp;
+                    
+                    // Limiter les demandes de bataille à une toutes les 30 secondes
+                    if (timeSinceLastBattle < 30000) {
+                        socket.emit('battle_cooldown', {
+                            message: 'Please wait before requesting another battle',
+                            remainingTime: Math.floor((30000 - timeSinceLastBattle) / 1000)
+                        });
+                        return;
+                    }
+                }
             }
             
             // Trouver le joueur cible
@@ -244,6 +305,21 @@ class BattleService {
             socket.emit('battle_request_sent', {
                 targetUsername: targetSocket.user.username
             });
+            
+            // Stocker dans Redis
+            if (this.redisClient && this.redisClient.isReady) {
+                const battleRequestData = {
+                    fromUserId: socket.user.id,
+                    fromUsername: socket.user.username,
+                    targetUserId: targetUserId,
+                    targetUsername: targetSocket.user.username,
+                    battleType: battleType,
+                    timestamp: Date.now()
+                };
+                
+                const recentBattleKey = `recent_battle:${socket.user.id}_${targetUserId}`;
+                await this.redisClient.setEx(recentBattleKey, 300, JSON.stringify(battleRequestData));
+            }
             
             console.log(`⚔️ Battle request: ${socket.user.username} -> ${targetSocket.user.username}`);
             
@@ -412,13 +488,42 @@ class BattleService {
      * Obtient les attaques d'un Pokémon sauvage
      */
     getWildPokemonMoves(speciesId, level) {
-        // Attaques par défaut pour la démonstration
-        return [
+        // Expanded default moves for wild Pokemon with more variety
+        const wildMoves = [
             { id: 1, name: 'Charge', type: 'normal', power: 40, accuracy: 100, current_pp: 35, max_pp: 35 },
             { id: 2, name: 'Grognement', type: 'normal', power: 0, accuracy: 100, current_pp: 40, max_pp: 40 },
             { id: 3, name: 'Vive-attaque', type: 'normal', power: 40, accuracy: 100, current_pp: 30, max_pp: 30 },
-            { id: 4, name: 'Queue de fer', type: 'steel', power: 100, accuracy: 75, current_pp: 15, max_pp: 15 }
+            { id: 4, name: 'Queue de fer', type: 'steel', power: 100, accuracy: 75, current_pp: 15, max_pp: 15 },
+            { id: 5, name: 'Tackle', type: 'normal', power: 50, accuracy: 100, current_pp: 35, max_pp: 35 },
+            { id: 6, name: 'Scratch', type: 'normal', power: 40, accuracy: 100, current_pp: 35, max_pp: 35 },
+            { id: 7, name: 'Ember', type: 'fire', power: 40, accuracy: 100, current_pp: 25, max_pp: 25 },
+            { id: 8, name: 'Water Gun', type: 'water', power: 40, accuracy: 100, current_pp: 25, max_pp: 25 },
+            { id: 9, name: 'Thunder Shock', type: 'electric', power: 40, accuracy: 100, current_pp: 30, max_pp: 30 },
+            { id: 10, name: 'Vine Whip', type: 'grass', power: 45, accuracy: 100, current_pp: 25, max_pp: 25 },
+            { id: 11, name: 'Poison Sting', type: 'poison', power: 15, accuracy: 100, current_pp: 35, max_pp: 35 },
+            { id: 12, name: 'Gust', type: 'flying', power: 40, accuracy: 100, current_pp: 35, max_pp: 35 },
+            { id: 13, name: 'Bug Bite', type: 'bug', power: 60, accuracy: 100, current_pp: 20, max_pp: 20 },
+            { id: 14, name: 'Rock Throw', type: 'rock', power: 50, accuracy: 90, current_pp: 15, max_pp: 15 },
+            { id: 15, name: 'Mud Shot', type: 'ground', power: 55, accuracy: 100, current_pp: 15, max_pp: 15 },
+            // Action-based moves
+            { id: 99, name: 'idle', type: 'normal', power: 0, accuracy: 100, current_pp: 40, max_pp: 40 },
+            { id: 100, name: 'move', type: 'normal', power: 0, accuracy: 100, current_pp: 40, max_pp: 40 },
+            { id: 101, name: 'run', type: 'normal', power: 0, accuracy: 100, current_pp: 40, max_pp: 40 },
+            { id: 102, name: 'jump', type: 'normal', power: 0, accuracy: 100, current_pp: 40, max_pp: 40 },
+            { id: 108, name: 'dodge', type: 'normal', power: 0, accuracy: 100, current_pp: 30, max_pp: 30 },
+            { id: 109, name: 'boost', type: 'normal', power: 0, accuracy: 100, current_pp: 20, max_pp: 20 }
         ];
+        
+        // Select 4 random moves for the wild Pokemon
+        const selectedMoves = [];
+        const availableMoves = [...wildMoves];
+        
+        while (selectedMoves.length < 4 && availableMoves.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableMoves.length);
+            selectedMoves.push(availableMoves.splice(randomIndex, 1)[0]);
+        }
+        
+        return selectedMoves;
     }
     
     /**
@@ -439,16 +544,122 @@ class BattleService {
      * Obtient les données d'une attaque
      */
     getMoveData(moveId) {
-        // Données de base des attaques (à terme depuis la base de données)
+        // Expanded move database with more moves
         const moveDatabase = {
             1: { name: 'Charge', type: 'normal', category: 'physical', power: 40 },
             2: { name: 'Grognement', type: 'normal', category: 'status', power: 0 },
             3: { name: 'Vive-attaque', type: 'normal', category: 'physical', power: 40 },
             4: { name: 'Queue de fer', type: 'steel', category: 'physical', power: 100 },
+            5: { name: 'Tackle', type: 'normal', category: 'physical', power: 50 },
+            6: { name: 'Scratch', type: 'normal', category: 'physical', power: 40 },
+            7: { name: 'Ember', type: 'fire', category: 'special', power: 40 },
+            8: { name: 'Water Gun', type: 'water', category: 'special', power: 40 },
+            9: { name: 'Thunder Shock', type: 'electric', category: 'special', power: 40 },
+            10: { name: 'Vine Whip', type: 'grass', category: 'physical', power: 45 },
+            11: { name: 'Poison Sting', type: 'poison', category: 'physical', power: 15 },
+            12: { name: 'Gust', type: 'flying', category: 'special', power: 40 },
+            13: { name: 'Bug Bite', type: 'bug', category: 'physical', power: 60 },
+            14: { name: 'Rock Throw', type: 'rock', category: 'physical', power: 50 },
+            15: { name: 'Mud Shot', type: 'ground', category: 'special', power: 55 },
+            16: { name: 'Karate Chop', type: 'fighting', category: 'physical', power: 50 },
+            17: { name: 'Confusion', type: 'psychic', category: 'special', power: 50 },
+            18: { name: 'Powder Snow', type: 'ice', category: 'special', power: 40 },
+            19: { name: 'Lick', type: 'ghost', category: 'physical', power: 30 },
+            20: { name: 'Twister', type: 'dragon', category: 'special', power: 40 },
+            21: { name: 'Bite', type: 'dark', category: 'physical', power: 60 },
             22: { name: 'Fouet Lianes', type: 'grass', category: 'physical', power: 45 },
+            23: { name: 'Metal Claw', type: 'steel', category: 'physical', power: 50 },
+            24: { name: 'Fairy Wind', type: 'fairy', category: 'special', power: 40 },
+            25: { name: 'Flamethrower', type: 'fire', category: 'special', power: 90 },
+            26: { name: 'Surf', type: 'water', category: 'special', power: 90 },
+            27: { name: 'Thunderbolt', type: 'electric', category: 'special', power: 90 },
+            28: { name: 'Solar Beam', type: 'grass', category: 'special', power: 120 },
+            29: { name: 'Sludge Bomb', type: 'poison', category: 'special', power: 90 },
+            30: { name: 'Air Slash', type: 'flying', category: 'special', power: 75 },
+            31: { name: 'X-Scissor', type: 'bug', category: 'physical', power: 80 },
+            32: { name: 'Stone Edge', type: 'rock', category: 'physical', power: 100 },
+            33: { name: 'Earthquake', type: 'ground', category: 'physical', power: 100 },
+            34: { name: 'Focus Blast', type: 'fighting', category: 'special', power: 120 },
+            35: { name: 'Psychic', type: 'psychic', category: 'special', power: 90 },
+            36: { name: 'Blizzard', type: 'ice', category: 'special', power: 110 },
+            37: { name: 'Shadow Ball', type: 'ghost', category: 'special', power: 80 },
+            38: { name: 'Dragon Claw', type: 'dragon', category: 'physical', power: 80 },
+            39: { name: 'Dark Pulse', type: 'dark', category: 'special', power: 80 },
+            40: { name: 'Flash Cannon', type: 'steel', category: 'special', power: 80 },
+            41: { name: 'Moonblast', type: 'fairy', category: 'special', power: 95 },
+            42: { name: 'Hyper Beam', type: 'normal', category: 'special', power: 150 },
+            43: { name: 'Fire Blast', type: 'fire', category: 'special', power: 110 },
+            44: { name: 'Hydro Pump', type: 'water', category: 'special', power: 110 },
+            45: { name: 'Thunder', type: 'electric', category: 'special', power: 110 },
+            46: { name: 'Leaf Blade', type: 'grass', category: 'physical', power: 90 },
+            47: { name: 'Gunk Shot', type: 'poison', category: 'physical', power: 120 },
+            48: { name: 'Hurricane', type: 'flying', category: 'special', power: 110 },
+            49: { name: 'Megahorn', type: 'bug', category: 'physical', power: 120 },
+            50: { name: 'Head Smash', type: 'rock', category: 'physical', power: 150 },
+            51: { name: 'Fissure', type: 'ground', category: 'physical', power: null },
             52: { name: 'Flammèche', type: 'fire', category: 'special', power: 40 },
+            53: { name: 'Close Combat', type: 'fighting', category: 'physical', power: 120 },
+            54: { name: 'Future Sight', type: 'psychic', category: 'special', power: 120 },
             55: { name: 'Pistolet à O', type: 'water', category: 'special', power: 40 },
-            84: { name: 'Éclair', type: 'electric', category: 'special', power: 40 }
+            56: { name: 'Sheer Cold', type: 'ice', category: 'special', power: null },
+            57: { name: 'Destiny Bond', type: 'ghost', category: 'status', power: 0 },
+            58: { name: 'Outrage', type: 'dragon', category: 'physical', power: 120 },
+            59: { name: 'Crunch', type: 'dark', category: 'physical', power: 80 },
+            60: { name: 'Iron Tail', type: 'steel', category: 'physical', power: 100 },
+            61: { name: 'Play Rough', type: 'fairy', category: 'physical', power: 90 },
+            62: { name: 'Body Slam', type: 'normal', category: 'physical', power: 85 },
+            63: { name: 'Flame Wheel', type: 'fire', category: 'physical', power: 60 },
+            64: { name: 'Aqua Tail', type: 'water', category: 'physical', power: 90 },
+            65: { name: 'Thunder Punch', type: 'electric', category: 'physical', power: 75 },
+            66: { name: 'Energy Ball', type: 'grass', category: 'special', power: 90 },
+            67: { name: 'Cross Poison', type: 'poison', category: 'physical', power: 70 },
+            68: { name: 'Brave Bird', type: 'flying', category: 'physical', power: 120 },
+            69: { name: 'Bug Buzz', type: 'bug', category: 'special', power: 90 },
+            70: { name: 'Rock Slide', type: 'rock', category: 'physical', power: 75 },
+            71: { name: 'Dig', type: 'ground', category: 'physical', power: 80 },
+            72: { name: 'Drain Punch', type: 'fighting', category: 'physical', power: 75 },
+            73: { name: 'Zen Headbutt', type: 'psychic', category: 'physical', power: 80 },
+            74: { name: 'Avalanche', type: 'ice', category: 'physical', power: 60 },
+            75: { name: 'Shadow Claw', type: 'ghost', category: 'physical', power: 70 },
+            76: { name: 'Dragon Pulse', type: 'dragon', category: 'special', power: 85 },
+            77: { name: 'Sucker Punch', type: 'dark', category: 'physical', power: 70 },
+            78: { name: 'Iron Head', type: 'steel', category: 'physical', power: 80 },
+            79: { name: 'Dazzling Gleam', type: 'fairy', category: 'special', power: 80 },
+            80: { name: 'Take Down', type: 'normal', category: 'physical', power: 90 },
+            81: { name: 'Fire Spin', type: 'fire', category: 'special', power: 35 },
+            82: { name: 'Bubble Beam', type: 'water', category: 'special', power: 65 },
+            83: { name: 'Spark', type: 'electric', category: 'physical', power: 65 },
+            84: { name: 'Éclair', type: 'electric', category: 'special', power: 40 },
+            85: { name: 'Razor Leaf', type: 'grass', category: 'physical', power: 55 },
+            86: { name: 'Sludge', type: 'poison', category: 'special', power: 65 },
+            87: { name: 'Wing Attack', type: 'flying', category: 'physical', power: 60 },
+            88: { name: 'Pin Missile', type: 'bug', category: 'physical', power: 25 },
+            89: { name: 'Rock Blast', type: 'rock', category: 'physical', power: 25 },
+            90: { name: 'Mud Bomb', type: 'ground', category: 'special', power: 65 },
+            91: { name: 'Brick Break', type: 'fighting', category: 'physical', power: 75 },
+            92: { name: 'Psybeam', type: 'psychic', category: 'special', power: 65 },
+            93: { name: 'Ice Beam', type: 'ice', category: 'special', power: 90 },
+            94: { name: 'Night Shade', type: 'ghost', category: 'special', power: null },
+            95: { name: 'Dragon Rage', type: 'dragon', category: 'special', power: null },
+            96: { name: 'Feint Attack', type: 'dark', category: 'physical', power: 60 },
+            97: { name: 'Bullet Punch', type: 'steel', category: 'physical', power: 40 },
+            98: { name: 'Draining Kiss', type: 'fairy', category: 'special', power: 50 },
+            // Action-based moves
+            99: { name: 'idle', type: 'normal', category: 'status', power: 0 },
+            100: { name: 'move', type: 'normal', category: 'status', power: 0 },
+            101: { name: 'run', type: 'normal', category: 'status', power: 0 },
+            102: { name: 'jump', type: 'normal', category: 'status', power: 0 },
+            103: { name: 'jump_lp', type: 'normal', category: 'status', power: 0 },
+            104: { name: 'jump_end', type: 'normal', category: 'status', power: 0 },
+            105: { name: 'damage', type: 'normal', category: 'status', power: 0 },
+            106: { name: 'down', type: 'normal', category: 'status', power: 0 },
+            107: { name: 'down_end', type: 'normal', category: 'status', power: 0 },
+            108: { name: 'dodge', type: 'normal', category: 'status', power: 0 },
+            109: { name: 'boost', type: 'normal', category: 'status', power: 0 },
+            110: { name: 'skill_A', type: 'normal', category: 'physical', power: 50 },
+            111: { name: 'skill_B', type: 'normal', category: 'special', power: 50 },
+            112: { name: 'flagget', type: 'normal', category: 'status', power: 0 },
+            113: { name: 'adle_a', type: 'normal', category: 'status', power: 0 }
         };
         
         return moveDatabase[moveId] || { name: 'Attaque inconnue', type: 'normal', category: 'physical', power: 50 };

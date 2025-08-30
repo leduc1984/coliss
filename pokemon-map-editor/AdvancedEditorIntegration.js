@@ -182,6 +182,59 @@ class AdvancedEditorIntegration {
     }
     
     /**
+     * Gérer les événements de pointeur move
+     */
+    handlePointerMove(pointerInfo) {
+        const pickResult = pointerInfo.pickInfo;
+        
+        switch (this.currentTool) {
+            case 'MULTI_SELECT':
+                // Handle multi-select box drawing if active
+                if (this.selectionManager && this.selectionManager.isBoxSelectionActive) {
+                    this.selectionManager.updateBoxSelection(pointerInfo.event);
+                }
+                break;
+            case 'MEASURE':
+                // Show measurement preview
+                if (this.measureTool && this.measureTool.isActive) {
+                    this.measureTool.showMeasurePreview(pickResult.pickedPoint);
+                }
+                break;
+            case 'PREFAB_PLACE':
+                // Show placement preview
+                if (this.prefabManager && this.selectedPrefab) {
+                    this.prefabManager.showPlacementPreview(pickResult.pickedPoint);
+                }
+                break;
+        }
+    }
+    
+    /**
+     * Gérer les événements de pointeur up
+     */
+    handlePointerUp(pointerInfo) {
+        const pickResult = pointerInfo.pickInfo;
+        
+        switch (this.currentTool) {
+            case 'MULTI_SELECT':
+                // Complete box selection if active
+                if (this.selectionManager && this.selectionManager.isBoxSelectionActive) {
+                    this.selectionManager.completeBoxSelection();
+                }
+                break;
+            case 'MEASURE':
+                // Complete measurement if active
+                if (this.measureTool && this.measureTool.isActive) {
+                    this.measureTool.completeMeasurement();
+                }
+                break;
+            case 'PREFAB_PLACE':
+                // No specific action needed on pointer up for prefab placement
+                break;
+        }
+    }
+    
+    /**
      * Gérer la sélection multiple
      */
     handleMultiSelectDown(pickResult) {
@@ -196,7 +249,9 @@ class AdvancedEditorIntegration {
                 this.selectionManager.toggleSelection(mesh);
             } else if (isShiftPressed) {
                 // Commencer la sélection par boîte
-                this.selectionManager.startBoxSelection(pointerInfo.event);
+                if (pickResult.event) {
+                    this.selectionManager.startBoxSelection(pickResult.event);
+                }
             } else {
                 this.selectionManager.clearSelection();
                 this.selectionManager.addToSelection(mesh);

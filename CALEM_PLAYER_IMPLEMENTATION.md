@@ -24,7 +24,7 @@ I have successfully implemented the Calem player model with full animation contr
 The system searches for animations with these names:
 - **Idle**: `idle`, `stand`, `rest`, `breathing`, `default`
 - **Walk**: `walk`, `move`, `step`, `walking`, `locomotion`
-- **Run**: `run`, `sprint`, `dash`, `running`, `jog`
+
 
 ### 4. **Improved Error Handling**
 - **Fallback System**: If Calem model fails to load, creates a blue capsule

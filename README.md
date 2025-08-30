@@ -42,6 +42,9 @@ This Pokemon MMO is a complete multiplayer game system built with modern web tec
 - **🆕 Collision System**: Invisible boundaries prevent leaving the map
 - **🆕 Stair Teleportation**: Walk near stairs to teleport between house and Drewfort
 - **🆕 Interactive UI**: Teleport prompts with keyboard shortcuts (Space/Escape)
+- **🆕 Authentic ORAS Movement**: World-relative movement with proper orientation
+- **🆕 Fixed ORAS Camera**: Authentic Pokemon ORAS camera with 50-degree viewing angle
+- **🆕 Robust Physics System**: Graceful fallback when physics engine is not available
 
 ### 💬 Chat System
 - **Real-time Chat**: Instant messaging between players
@@ -56,7 +59,6 @@ Frontend (Browser)           Backend (Node.js)           Database (PostgreSQL)
 ├── Babylon.js 3D Engine    ├── Express API Server      ├── Users Table
 ├── Socket.io Client        ├── Socket.io Real-time      ├── Characters Table
 ├── Authentication UI       ├── JWT Authentication       ├── Chat Messages
-├── Chat Interface          ├── Chat Service             ├── User Sessions
 └── Game Controls           └── Game Service             └── Maps Data
 ```
 
@@ -163,13 +165,14 @@ PORT=3000
 ```javascript
 this.camera = new BABYLON.ArcRotateCamera(
     "playerCamera",
-    -Math.PI / 2, // Horizontal rotation
-    Math.PI / 3,  // Vertical angle (Pokemon style)
-    15,           // Distance from player
+    -Math.PI / 2, // Horizontal rotation (behind player)
+    Math.PI / 3.5,  // Vertical angle (50 degrees for authentic ORAS view)
+    8,           // Distance from player (authentic ORAS distance)
     BABYLON.Vector3.Zero(),
     this.scene
 );
 ```
+- **Physics Engine**: Robust physics system with graceful fallback
 - **Map Loading**: GLB/GLTF 3D model support
 - **Socket.io Integration**: Real-time multiplayer communication
 - **Player Management**: Other players rendering and updates
@@ -177,10 +180,11 @@ this.camera = new BABYLON.ArcRotateCamera(
 #### `public/js/player.js`
 **Purpose**: Player movement and controls
 - **Pokemon-style Movement**: Grid-based with smooth interpolation
+- **World-relative Movement**: Authentic ORAS-style movement (W=north, S=south, A=west, D=east)
 - **Input Handling**: WASD/Arrow keys + Shift/Space for running
 - **Animation System**: Walking, running, idle states (placeholder)
 - **Network Sync**: Real-time position broadcasting
-- **Camera Following**: Smooth camera that follows player movement
+- **Camera Following**: Fixed ORAS camera that follows player movement
 
 #### `public/js/chat.js`
 **Purpose**: Chat interface and commands

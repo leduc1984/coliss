@@ -119,12 +119,14 @@ window.addEventListener('DOMContentLoaded', () => {
             gizmoManager.gizmos[gizmoType].onDragEndObservable.add(() => saveStateToHistory());
         }
     });
+//
 
     // --- Initialisation de l'Éditeur ---
     initUI();
     initCustomCameraControls();
     makePanelsResizable();
     initHotkeys();
+    initWindowControls(); // Add this line to initialize window controls
     
     // Load Pokemon data
     loadPokemonData();
@@ -613,6 +615,73 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         }
         
+        // Window Controls Buttons
+        const minimizeEditorBtn = document.getElementById('minimizeEditorBtn');
+        const fullscreenEditorBtn = document.getElementById('fullscreenEditorBtn');
+        const closeEditorBtn = document.getElementById('closeEditorBtn');
+        
+        if (minimizeEditorBtn) {
+            minimizeEditorBtn.addEventListener('click', () => {
+                // Minimize functionality - sending a message to parent window
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ action: 'minimizeMapEditor' }, '*');
+                } else {
+                    // Fallback for standalone mode
+                    alert('Minimize feature only works when embedded in game');
+                }
+            });
+        }
+        
+        if (fullscreenEditorBtn) {
+            fullscreenEditorBtn.addEventListener('click', () => {
+                // Toggle fullscreen
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                    fullscreenEditorBtn.textContent = '⤓';
+                    fullscreenEditorBtn.title = 'Exit Fullscreen';
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                        fullscreenEditorBtn.textContent = '⟱';
+                        fullscreenEditorBtn.title = 'Fullscreen';
+                    }
+                }
+            });
+        }
+        
+        if (closeEditorBtn) {
+            closeEditorBtn.addEventListener('click', () => {
+                // Close functionality - sending a message to parent window
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ action: 'closeMapEditor' }, '*');
+                } else {
+                    // Fallback for standalone mode - ask for confirmation
+                    if (confirm('Are you sure you want to close the Map Editor? Any unsaved changes will be lost.')) {
+                        window.close();
+                        // If window.close() doesn't work (browser restrictions)
+                        window.location.href = '/';
+                    }
+                }
+            });
+        }
+        
+        // Handle fullscreen change events
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                if (fullscreenEditorBtn) {
+                    fullscreenEditorBtn.textContent = '⤓';
+                    fullscreenEditorBtn.title = 'Exit Fullscreen';
+                }
+            } else {
+                if (fullscreenEditorBtn) {
+                    fullscreenEditorBtn.textContent = '⟱';
+                    fullscreenEditorBtn.title = 'Fullscreen';
+                }
+            }
+        });
+        
         // Pokemon Zone Creation
         const createZoneBtn = document.getElementById('createZoneBtn');
         const placeNpcBtn = document.getElementById('placeNpcBtn');
@@ -940,8 +1009,80 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function makePanelsResizable() {
-        // Fonction pour rendre les panneaux redimensionnables
-        // Cette fonction peut être étendue pour ajouter la fonctionnalité de redimensionnement
+        const leftPanel = document.getElementById('left-panel');
+        const leftSplitter = document.getElementById('left-splitter');
+        const rightPanel = document.getElementById('right-panel');
+        const rightSplitter = document.getElementById('right-splitter');
+        const editorContainer = document.getElementById('editor-container');
+        
+        // Function to handle resizing
+        function initResizable(panel, splitter, isLeft) {
+            if (!panel || !splitter) return;
+            
+            let isResizing = false;
+            let startX, startWidth;
+            
+            splitter.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = parseInt(document.defaultView.getComputedStyle(panel).width, 10);
+                
+                // Add an overlay to capture mouse events during resize
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.zIndex = '9999';
+                overlay.style.cursor = 'col-resize';
+                document.body.appendChild(overlay);
+                
+                // Attach move and up events to the document
+                function onMouseMove(e) {
+                    if (!isResizing) return;
+                    
+                    const delta = e.clientX - startX;
+                    let newWidth;
+                    
+                    if (isLeft) {
+                        newWidth = startWidth + delta;
+                    } else {
+                        newWidth = startWidth - delta;
+                    }
+                    
+                    // Set min and max width constraints
+                    newWidth = Math.max(200, Math.min(500, newWidth));
+                    
+                    panel.style.width = `${newWidth}px`;
+                    panel.style.flexBasis = `${newWidth}px`;
+                    panel.style.minWidth = `${newWidth}px`;
+                }
+                
+                function onMouseUp() {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    document.body.removeChild(overlay);
+                }
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                
+                e.preventDefault();
+            });
+        }
+        
+        // Initialize left panel resizing
+        if (leftPanel && leftSplitter) {
+            initResizable(leftPanel, leftSplitter, true);
+        }
+        
+        // Initialize right panel resizing
+        if (rightPanel && rightSplitter) {
+            initResizable(rightPanel, rightSplitter, false);
+        }
+        
         console.log('Panels made resizable');
     }
 

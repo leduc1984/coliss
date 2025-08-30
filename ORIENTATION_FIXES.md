@@ -8,6 +8,7 @@ The user reported problems with:
 3. **Map alignment**: Player movement not aligned with map layout
 4. **Admin model visibility**: Admin model loading but with orientation issues
 
+ we use only one model for yet is pokemon-map-editor\assets\player\calem\calem.glb for all players..  
 ## 🔧 Fixes Implemented
 
 ### 1. **Player Orientation Fixes**
@@ -110,11 +111,6 @@ const targetRotation = Math.atan2(moveVector.x, moveVector.z);
 ## 🧪 Testing Instructions
 
 1. **Load the game**: Access http://localhost:3000
-2. **Login as admin**: Use "leduc" account to see admin model
-3. **Test orientation**:
-   - Press F1 to show debug overlay
-   - Use WASD to move and verify directions match expectations
-   - Press P for console debug information
 4. **Camera verification**:
    - Camera should stay behind player
    - Smooth following without manual control

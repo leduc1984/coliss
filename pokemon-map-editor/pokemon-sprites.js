@@ -44,9 +44,10 @@ class PokemonSpriteManager {
     /**
      * Get box icon path for a Pokemon based on its ID
      */
-    getBoxIconPath(id) {
-        // Use the correct path to monster icons
-        return `/pokemon-map-editor/assets/box/sprites/monstericons/icon_${id}.png`;
+    getBoxIconPath(id, variant = 0) {
+        // Use the correct path to monster icons with the actual naming convention
+        const paddedId = id.toString().padStart(3, '0');
+        return `/pokemon-map-editor/assets/box/sprites/monstericons/${paddedId}-${variant}.png`;
     }
 
     /**
@@ -295,11 +296,18 @@ class PokemonSpriteManager {
             useBoxSprite = false
         } = options;
 
-        const spritePath = await this.getBestFrontSprite(pokemonId, { 
-            shiny, 
-            gender,
-            useBoxSprite
-        });
+        let spritePath;
+        if (useBoxSprite) {
+            // For box sprites, use the local files with the correct naming convention
+            spritePath = this.getBoxIconPath(pokemonId, 0);
+        } else {
+            // For battle sprites, try to use the remote ones
+            spritePath = await this.getBestFrontSprite(pokemonId, { 
+                shiny, 
+                gender,
+                useBoxSprite
+            });
+        }
         
         const img = document.createElement('img');
         img.src = spritePath;
@@ -319,10 +327,41 @@ class PokemonSpriteManager {
         // Add error handling
         img.onerror = () => {
             console.warn(`Failed to load sprite for Pokemon ${pokemonId}, using fallback`);
-            // Try to use the master pokedex image as fallback
-            img.src = '/pokemon-map-editor/assets/box/master_pokedex.png';
-            // Adjust the CSS to show only the relevant portion of the master image
             if (useBoxSprite) {
+                // Try alternative variants for box sprites
+                const variants = [1, 2];
+                let variantIndex = 0;
+                
+                const tryNextVariant = () => {
+                    if (variantIndex < variants.length) {
+                        const variant = variants[variantIndex];
+                        img.src = this.getBoxIconPath(pokemonId, variant);
+                        variantIndex++;
+                    } else {
+                        // If all variants fail, use a placeholder
+                        img.src = '/pokemon-map-editor/assets/box/master_pokedex.png';
+                        // Adjust the CSS to show only the relevant portion of the master image
+                        const id = parseInt(pokemonId);
+                        // Calculate position in the sprite sheet based on ID
+                        // This is an approximate calculation and might need adjustment based on the actual sprite sheet
+                        const row = Math.floor((id - 1) / 25);
+                        const col = (id - 1) % 25;
+                        img.style.objectFit = 'none';
+                        img.style.objectPosition = `-${col * 32}px -${row * 32}px`;
+                        img.style.width = '32px';
+                        img.style.height = '32px';
+                        img.style.transform = 'scale(2)';
+                        img.style.transformOrigin = 'center';
+                        img.style.imageRendering = 'pixelated';
+                    }
+                };
+                
+                img.onerror = tryNextVariant;
+                tryNextVariant();
+            } else {
+                // For battle sprites, use the master pokedex image as fallback
+                img.src = '/pokemon-map-editor/assets/box/master_pokedex.png';
+                // Adjust the CSS to show only the relevant portion of the master image
                 const id = parseInt(pokemonId);
                 // Calculate position in the sprite sheet based on ID
                 // This is an approximate calculation and might need adjustment based on the actual sprite sheet
@@ -341,3 +380,6 @@ class PokemonSpriteManager {
         return img;
     }
 }
+
+// Create global instance
+const pokemonSpriteManager = new PokemonSpriteManager();

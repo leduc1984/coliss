@@ -194,12 +194,18 @@ class GameManager {
             this.useManualCollisions = true;
         }
         
+        // Verify physics is enabled before proceeding
+        if (!this.scene.isPhysicsEnabled()) {
+            console.warn('⚠️ Physics not enabled. Please use scene.enablePhysics(...) before creating impostors.');
+            this.useManualCollisions = true;
+        }
+        
         // Create camera (Pokemon ORAS-style optimized view)
         this.camera = new BABYLON.ArcRotateCamera(
             "playerCamera",
             -Math.PI / 2, // Alpha (horizontal rotation) - directly behind player
-            Math.PI / 4,  // Beta (45 degrees for optimal ORAS view)
-            25,           // Distance - increased for wider view of matrix1 map
+            Math.PI / 3.5,  // Beta (50 degrees for authentic ORAS view)
+            8,           // Distance - authentic ORAS distance
             BABYLON.Vector3.Zero(),
             this.scene
         );
@@ -209,24 +215,24 @@ class GameManager {
         
         // Cible (target) : BABYLON.Vector3.Zero() au départ - already set above
         
-        // Alpha (angle horizontal) : -Math.PI / 2 (regarde droit devant)
+        // Alpha (angle horizontal) : -Math.PI / 2 (regarde droit derrière le joueur)
         this.camera.alpha = -Math.PI / 2;
         
-        // Beta (angle vertical) : Math.PI / 4 (un angle de 45 degrés, regardant vers le bas)
-        this.camera.beta = Math.PI / 4;
+        // Beta (angle vertical) : Math.PI / 3.5 (un angle de ~50 degrés, regardant vers le bas)
+        this.camera.beta = Math.PI / 3.5;
         
-        // Radius (distance) : 25 (increase distance slightly for a wider view of the map)
-        this.camera.radius = 25;
+        // Radius (distance) : 8 (authentic ORAS distance)
+        this.camera.radius = 8;
         
         // TODO Correction: Ensure camera always looks at player
         // camera.lockedTarget = player;  // Forces the camera to always look at the player mesh
         // Note: This will be set after player is created
         
         // Pokemon ORAS camera characteristics (optimized for immersive experience)
-        this.camera.lowerBetaLimit = Math.PI / 4;   // Lock at 45 degrees
-        this.camera.upperBetaLimit = Math.PI / 4;   // Lock at 45 degrees
-        this.camera.lowerRadiusLimit = 25;          // Increased distance for matrix1 map
-        this.camera.upperRadiusLimit = 25;          // Increased distance for matrix1 map
+        this.camera.lowerBetaLimit = Math.PI / 3.5;   // Lock at 50 degrees
+        this.camera.upperBetaLimit = Math.PI / 3.5;   // Lock at 50 degrees
+        this.camera.lowerRadiusLimit = 8;          // Authentic ORAS distance
+        this.camera.upperRadiusLimit = 8;          // Authentic ORAS distance
         this.camera.lowerAlphaLimit = -Math.PI / 2; // Lock horizontal rotation
         this.camera.upperAlphaLimit = -Math.PI / 2; // Lock horizontal rotation
         
@@ -1792,7 +1798,12 @@ class GameManager {
         console.log('🎮 Phase 2: Chargement et configuration du joueur');
         this.updateLoadingText('Chargement du modèle joueur Calem...');
 
-        const modelFileName = 'calem/calem.glb';
+        // Use specific model for admin "leduc"
+        let modelFileName = 'calem/calem.glb';
+        if (this.user?.username === 'leduc' && (this.user?.role === 'admin' || this.user?.role === 'co-admin')) {
+            modelFileName = 'calem/leduc/kaido.glb';
+            console.log('👑 Chargement du modèle spécial Kaido pour l\'administrateur leduc');
+        }
         console.log('👤 Chargement du modèle Calem pour l\'utilisateur:', this.user?.username || 'unknown');
 
         // Charger le modèle GLB
@@ -1836,13 +1847,19 @@ class GameManager {
         }
 
         // Collisions et physique
-        this.player.physicsImpostor = new BABYLON.PhysicsImpostor(
-            this.player, 
-            BABYLON.PhysicsImpostor.CapsuleImpostor, 
-            { mass: 1, restitution: 0.1, friction: 0.5 }, 
-            this.scene
-        );
-        if (this.player.physicsImpostor.physicsBody) this.player.physicsImpostor.physicsBody.angularDamping = 0.9;
+        // Only create physics impostor if physics is enabled
+        if (this.scene.isPhysicsEnabled()) {
+            this.player.physicsImpostor = new BABYLON.PhysicsImpostor(
+                this.player, 
+                BABYLON.PhysicsImpostor.CapsuleImpostor, 
+                { mass: 1, restitution: 0.1, friction: 0.5 }, 
+                this.scene
+            );
+            if (this.player.physicsImpostor.physicsBody) this.player.physicsImpostor.physicsBody.angularDamping = 0.9;
+        } else {
+            console.log('⚠️ Physics not enabled, using manual collision detection');
+        }
+        
         this.player.checkCollisions = true;
         this.player.ellipsoid = new BABYLON.Vector3(0.4, 0.8, 0.4);
         this.player.ellipsoidOffset = new BABYLON.Vector3(0, 0.8, 0);
@@ -1856,9 +1873,53 @@ class GameManager {
         this.camera.radius = 25;
         this.camera.lockedTarget = this.player;
 
-        // PlayerController
-        const userRole = this.user?.role || 'user';
-        this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+        // PlayerController with fallback mechanism
+        try {
+            if (typeof PlayerController === 'undefined' && typeof window.PlayerController !== 'undefined') {
+                PlayerController = window.PlayerController;
+                console.log('🔧 Using PlayerController from window object');
+            }
+            
+            if (typeof PlayerController === 'undefined') {
+                throw new Error('PlayerController is not defined');
+            }
+            
+            const userRole = this.user?.role || 'user';
+            this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+            console.log('✅ PlayerController instantiated successfully');
+
+        } catch (error) {
+            console.error('❌ Failed to instantiate PlayerController:', error);
+            
+            // Fallback implementation
+            this.playerController = {
+                player: this.player,
+                camera: this.camera,
+                scene: this.scene,
+                socket: this.socket,
+                updateCamera: function() {},
+                getPlayerState: function() { 
+                    return { position: this.player.position, rotation: this.player.rotation }; 
+                },
+                // Add other required methods with minimal implementation
+                initializeControls: function() {},
+                setupMovementLoop: function() {},
+                updateMovement: function() {},
+                updateAnimationState: function() {},
+                checkPositionChange: function() {},
+                sendPositionUpdate: function() {},
+                teleportTo: function(position, rotation = null) {
+                    this.player.position = new BABYLON.Vector3(position.x, position.y, position.z);
+                    if (rotation) {
+                        this.player.rotation = new BABYLON.Vector3(rotation.x, rotation.y, rotation.z);
+                    }
+                },
+                setMoveSpeed: function(speed) {},
+                setControlsEnabled: function(enabled) {}
+            };
+            
+            console.log('⚠️ Using fallback PlayerController implementation');
+        }
 
         console.log('✅ Modèle 3D Calem chargé avec succès');
 
@@ -1870,14 +1931,69 @@ class GameManager {
         this.player.position = this.currentMapName === 'matrix1' ? new BABYLON.Vector3(-14.33, 1, -25.22) : new BABYLON.Vector3(0, 1, 0);
         this.player.checkCollisions = true;
 
+        // Only create physics impostor if physics is enabled
+        if (this.scene.isPhysicsEnabled()) {
+            this.player.physicsImpostor = new BABYLON.PhysicsImpostor(
+                this.player, 
+                BABYLON.PhysicsImpostor.CapsuleImpostor, 
+                { mass: 1, restitution: 0.1, friction: 0.5 }, 
+                this.scene
+            );
+        }
+
         if (typeof this.setupFallbackPlayerAnimations === 'function') {
             this.setupFallbackPlayerAnimations();
         } else {
             console.warn('⚠️ Animation fallback non définie');
         }
 
-        const userRole = this.user?.role || 'user';
-        this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+        // PlayerController with fallback mechanism (fallback player)
+        try {
+            if (typeof PlayerController === 'undefined' && typeof window.PlayerController !== 'undefined') {
+                PlayerController = window.PlayerController;
+                console.log('🔧 Using PlayerController from window object');
+            }
+            
+            if (typeof PlayerController === 'undefined') {
+                throw new Error('PlayerController is not defined');
+            }
+            
+            const userRole = this.user?.role || 'user';
+            this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+            console.log('✅ PlayerController instantiated successfully for fallback player');
+
+        } catch (error) {
+            console.error('❌ Failed to instantiate PlayerController for fallback player:', error);
+            
+            // Fallback implementation
+            this.playerController = {
+                player: this.player,
+                camera: this.camera,
+                scene: this.scene,
+                socket: this.socket,
+                updateCamera: function() {},
+                getPlayerState: function() { 
+                    return { position: this.player.position, rotation: this.player.rotation }; 
+                },
+                // Add other required methods with minimal implementation
+                initializeControls: function() {},
+                setupMovementLoop: function() {},
+                updateMovement: function() {},
+                updateAnimationState: function() {},
+                checkPositionChange: function() {},
+                sendPositionUpdate: function() {},
+                teleportTo: function(position, rotation = null) {
+                    this.player.position = new BABYLON.Vector3(position.x, position.y, position.z);
+                    if (rotation) {
+                        this.player.rotation = new BABYLON.Vector3(rotation.x, rotation.y, rotation.z);
+                    }
+                },
+                setMoveSpeed: function(speed) {},
+                setControlsEnabled: function(enabled) {}
+            };
+            
+            console.log('⚠️ Using fallback PlayerController implementation for fallback player');
+        }
         console.log('⚠️ Joueur fallback créé avec succès');
     }
 }
@@ -2116,11 +2232,17 @@ class GameManager {
         let otherPlayer;
         
         try {
-            // Use the Calem model for all players regardless of role
+            // Use specific model for admin "leduc"
             let modelFileName = 'calem/calem.glb';
             let modelDescription = 'Calem player';
             
-            console.log('👤 Loading Calem model for player:', playerData.username);
+            if (playerData.username === 'leduc' && (playerData.role === 'admin' || playerData.role === 'co-admin')) {
+                modelFileName = 'calem/leduc/kaido.glb';
+                modelDescription = 'Kaido admin model';
+                console.log('👑 Loading special Kaido model for admin leduc');
+            } else {
+                console.log('👤 Loading Calem model for player:', playerData.username);
+            }
             
             // Try to load the Calem 3D model for all players
             const result = await BABYLON.SceneLoader.ImportMeshAsync(

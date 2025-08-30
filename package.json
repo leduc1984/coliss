@@ -15,6 +15,7 @@
     "test:admin": "node playwright-admin-map-test.js",
     "test:admin-full": "node playwright-full-admin-test.js",
     "test:admin-comprehensive": "node comprehensive-admin-test.js",
+    "test:player-controller": "node tests/run-player-controller-test.js",
     "verify-admin-setup": "node verify-admin-test-setup.js",
     "mcp-server": "node playwright-mcp-server.js"
   },
@@ -48,6 +49,7 @@
     "react-router-dom": "^7.8.2",
     "react-virtualized": "^9.22.6",
     "recharts": "^3.1.2",
+    "redis": "^5.8.2",
     "socket.io": "^4.7.2",
     "styled-components": "^6.1.19",
     "uuid": "^9.0.1",

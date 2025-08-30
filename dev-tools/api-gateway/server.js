@@ -1,3 +1,7 @@
+// Load environment variables from project root
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -8,12 +12,9 @@ const http = require('http');
 const { Pool } = require('pg');
 const Redis = require('redis');
 
-// Initialize Express app
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-// Database and Redis connections
+// -----------------------------
+// PostgreSQL connection
+// -----------------------------
 const pgPool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/pokemon_mmo',
   max: 20,
@@ -21,11 +22,39 @@ const pgPool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+pgPool.on('connect', () => {
+  console.log('✅ PostgreSQL connecté');
+});
+
+pgPool.on('error', (err) => {
+  console.error('❌ PostgreSQL erreur :', err);
+});
+
+// -----------------------------
+// Redis connection
+// -----------------------------
 const redisClient = Redis.createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-// Middleware
+redisClient.connect()
+  .then(() => console.log('✅ Redis connecté'))
+  .catch(err => console.error('❌ Redis erreur :', err));
+
+redisClient.on('error', (err) => {
+  console.error('❌ Redis client error:', err);
+});
+
+// -----------------------------
+// Express app & WebSocket server
+// -----------------------------
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+// -----------------------------
+// Middlewares
+// -----------------------------
 app.use(helmet());
 app.use(cors({
   origin: [
@@ -34,7 +63,7 @@ app.use(cors({
     'http://localhost:3002', // Monster Editor
     'http://localhost:3003', // Admin Panel
   ],
-  credentials: true
+  credentials: true,
 }));
 
 app.use(express.json({ limit: '50mb' }));

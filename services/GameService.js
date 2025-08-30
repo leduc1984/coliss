@@ -2,8 +2,9 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../database/migrate');
 
 class GameService {
-    constructor(io) {
+    constructor(io, redisClient = null) {
         this.io = io;
+        this.redisClient = redisClient;
         this.activePlayers = new Map(); // Map of socket.id -> player data
         this.playersByUserId = new Map(); // Map of user_id -> socket.id
     }

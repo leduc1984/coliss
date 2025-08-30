@@ -62,10 +62,10 @@ class PlayerController {
         // Setup Pokemon ORAS-style camera that follows player precisely
         console.log('🎮 Setting up ORAS-style camera');
         
-        // Apply ORAS camera settings
-        this.camera.alpha = -Math.PI / 2.5; // Angled 3/4 view
-        this.camera.beta = Math.PI / 5;     // Lowered angle for a more dynamic view
-        this.camera.radius = 20;            // Closer to the player
+        // Apply ORAS camera settings (authentic Pokemon ORAS characteristics)
+        this.camera.alpha = -Math.PI / 2;    // Behind player, facing north
+        this.camera.beta = Math.PI / 3.5;    // Characteristic 50-degree viewing angle
+        this.camera.radius = 8;              // Authentic ORAS distance
         
         // --- BUG FIX: Use lockedTarget for automatic camera following ---
         // This eliminates the conflict between manual camera updates and automatic following
@@ -75,8 +75,8 @@ class PlayerController {
         this.camera.detachControl();
         
         // Lock ORAS camera constraints for fixed view
-        this.camera.lowerRadiusLimit = 15;
-        this.camera.upperRadiusLimit = 30;
+        this.camera.lowerRadiusLimit = 8;
+        this.camera.upperRadiusLimit = 8;
         
         // Disable all camera movement for fixed ORAS view
         this.camera.inertia = 0;
@@ -172,11 +172,20 @@ class PlayerController {
             case 'p':
                 console.log('🔍 DEBUG INFO:');
                 console.log('Player position:', this.player.position);
-                console.log('Player rotation:', this.player.rotation);
-                console.log('Camera alpha:', this.camera.alpha);
-                console.log('Camera beta:', this.camera.beta);
+                console.log('Player rotation (radians):', this.player.rotation);
+                console.log('Player rotation (degrees):', {
+                    x: (this.player.rotation.x * 180 / Math.PI).toFixed(2),
+                    y: (this.player.rotation.y * 180 / Math.PI).toFixed(2),
+                    z: (this.player.rotation.z * 180 / Math.PI).toFixed(2)
+                });
+                console.log('Camera alpha (radians):', this.camera.alpha);
+                console.log('Camera alpha (degrees):', (this.camera.alpha * 180 / Math.PI).toFixed(2));
+                console.log('Camera beta (radians):', this.camera.beta);
+                console.log('Camera beta (degrees):', (this.camera.beta * 180 / Math.PI).toFixed(2));
                 console.log('Camera radius:', this.camera.radius);
                 console.log('Camera target:', this.camera.getTarget());
+                console.log('Movement state:', this.isMoving ? (this.inputMap.run ? 'Running' : 'Walking') : 'Idle');
+                console.log('Input map:', this.inputMap);
                 break;
             case 'F1':
                 // Toggle debug overlay
@@ -376,28 +385,23 @@ class PlayerController {
         const deltaTime = this.scene.getEngine().getDeltaTime() / 1000.0;
         let moved = false;
         
+        // World-relative movement (Pokemon style)
         let moveVector = BABYLON.Vector3.Zero();
         
-        const cameraForward = this.camera.getForwardRay().direction;
-        const cameraRight = BABYLON.Vector3.Cross(this.scene.activeCamera.upVector, cameraForward);
-        
-        const forwardDir = new BABYLON.Vector3(cameraForward.x, 0, cameraForward.z).normalize();
-        const rightDir = new BABYLON.Vector3(cameraRight.x, 0, cameraRight.z).normalize();
-        
         if (this.inputMap.forward) {
-            moveVector.addInPlace(forwardDir);
+            moveVector.z += 1; // Move north (positive Z)
             moved = true;
         }
         if (this.inputMap.backward) {
-            moveVector.subtractInPlace(forwardDir);
+            moveVector.z -= 1; // Move south (negative Z)  
             moved = true;
         }
         if (this.inputMap.left) {
-            moveVector.addInPlace(rightDir);
+            moveVector.x -= 1; // Move west (negative X)
             moved = true;
         }
         if (this.inputMap.right) {
-            moveVector.subtractInPlace(rightDir);
+            moveVector.x += 1; // Move east (positive X)
             moved = true;
         }
 
@@ -411,26 +415,38 @@ class PlayerController {
                 currentSpeed *= 1.8; // Slightly faster run
             }
 
+            // Use physics impostor if available, otherwise use direct position manipulation
             if (this.player.physicsImpostor) {
                 const velocity = moveVector.scale(currentSpeed);
                 this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(velocity.x, this.player.physicsImpostor.getLinearVelocity().y, velocity.z));
+            } else {
+                // Manual movement when physics is not available
+                const movement = moveVector.scale(currentSpeed * deltaTime);
+                this.player.position.addInPlace(movement);
             }
 
-            if (moveVector.length() > 0) {
-                const targetRotation = Math.atan2(moveVector.x, moveVector.z);
-                const currentY = this.player.rotation.y;
-                let diff = targetRotation - currentY;
-                if (Math.abs(diff) > Math.PI) {
-                    diff = diff - Math.sign(diff) * 2 * Math.PI;
-                }
-                const rotationSpeedMultiplier = 8.0;
-                this.player.rotation.y += diff * rotationSpeedMultiplier * deltaTime;
+            // Fixed rotation calculation using world coordinates
+            const targetRotation = Math.atan2(moveVector.x, moveVector.z);
+            const currentY = this.player.rotation.y;
+            let diff = targetRotation - currentY;
+            if (Math.abs(diff) > Math.PI) {
+                diff = diff - Math.sign(diff) * 2 * Math.PI;
             }
+            const rotationSpeedMultiplier = 8.0;
+            this.player.rotation.y += diff * rotationSpeedMultiplier * deltaTime;
 
             this.isMoving = true;
         } else {
+            // Use physics impostor if available, otherwise use direct position manipulation
             if (this.player.physicsImpostor) {
-                this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, this.player.physicsImpostor.getLinearVelocity().y, 0));
+                // Check if getLinearVelocity returns a valid value before using it
+                const currentVelocity = this.player.physicsImpostor.getLinearVelocity();
+                if (currentVelocity) {
+                    this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, currentVelocity.y || 0, 0));
+                } else {
+                    // If no velocity is available, just set it to zero with y=0
+                    this.player.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, 0, 0));
+                }
             }
             this.isMoving = false;
         }
@@ -510,6 +526,11 @@ class PlayerController {
             this.player.rotation = new BABYLON.Vector3(rotation.x, rotation.y, rotation.z);
         }
         
+        // Reset physics velocity if physics is enabled
+        if (this.player.physicsImpostor) {
+            this.player.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+        }
+        
         // With lockedTarget, we don't need to manually update the camera target
         // The camera will automatically follow the player
         // Send position update
@@ -566,9 +587,9 @@ class PlayerController {
         const camEl = document.getElementById('debug-camera');
         const movEl = document.getElementById('debug-moving');
         
-        if (posEl) posEl.textContent = `${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`;
-        if (rotEl) rotEl.textContent = `${(rot.y * 180 / Math.PI).toFixed(1)}°`;
-        if (camEl) camEl.textContent = `α: ${(this.camera.alpha * 180 / Math.PI).toFixed(1)}°, β: ${(this.camera.beta * 180 / Math.PI).toFixed(1)}°, r: ${this.camera.radius.toFixed(1)}`;
+        if (posEl) posEl.textContent = `X: ${pos.x.toFixed(1)}, Y: ${pos.y.toFixed(1)}, Z: ${pos.z.toFixed(1)}`;
+        if (rotEl) rotEl.textContent = `${(rot.y * 180 / Math.PI).toFixed(1)}°`; // Convert to degrees
+        if (camEl) camEl.textContent = `α: ${(this.camera.alpha * 180 / Math.PI).toFixed(1)}°, β: ${(this.camera.beta * 180 / Math.PI).toFixed(1)}°, r: ${this.camera.radius.toFixed(1)}`; // Convert to degrees
         if (movEl) movEl.textContent = this.isMoving ? (this.inputMap.run ? 'Running' : 'Walking') : 'Idle';
     }
     
@@ -647,6 +668,148 @@ class PlayerController {
         document.addEventListener('keydown', keydownHandler);
         
         console.log(`✅ ${toolName} panel opened`);
+    }
+    
+    /**
+     * Open the Map Editor in a panel or iframe with window controls
+     */
+    openMapEditorPanel() {
+        if (!this.isAdmin) {
+            console.log('🚫 Access denied: Admin privileges required for Map Editor');
+            return;
+        }
+
+        console.log('🗺️ Opening Map Editor panel...');
+
+        // Check if panel already exists
+        let mapEditorPanel = document.getElementById('mapEditorPanel');
+        if (mapEditorPanel) {
+            mapEditorPanel.style.display = 'flex';
+            return;
+        }
+
+        // Create panel container
+        mapEditorPanel = document.createElement('div');
+        mapEditorPanel.id = 'mapEditorPanel';
+        mapEditorPanel.className = 'admin-panel';
+        mapEditorPanel.style.position = 'fixed';
+        mapEditorPanel.style.top = '0';
+        mapEditorPanel.style.left = '0';
+        mapEditorPanel.style.width = '100%';
+        mapEditorPanel.style.height = '100%';
+        mapEditorPanel.style.zIndex = '1000';
+        mapEditorPanel.style.display = 'flex';
+        mapEditorPanel.style.flexDirection = 'column';
+        mapEditorPanel.style.backgroundColor = '#1a1a1a';
+
+        // Create iframe for the map editor
+        const iframe = document.createElement('iframe');
+        iframe.id = 'mapEditorIframe';
+        iframe.src = '/pokemon-map-editor/';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.flexGrow = '1';
+
+        // Add iframe to panel
+        mapEditorPanel.appendChild(iframe);
+
+        // Add panel to body
+        document.body.appendChild(mapEditorPanel);
+
+        // Listen for messages from the iframe
+        window.addEventListener('message', this.handleMapEditorMessages.bind(this));
+
+        console.log('✅ Map Editor panel opened');
+    }
+
+    /**
+     * Handle messages from the Map Editor iframe
+     */
+    handleMapEditorMessages(event) {
+        if (!event.data || typeof event.data !== 'object') return;
+
+        // Support both 'action' and 'type' properties for backward compatibility
+        const messageType = event.data.action || event.data.type;
+        const mapEditorPanel = document.getElementById('mapEditorPanel');
+
+        switch(messageType) {
+            case 'minimizeMapEditor':
+                if (mapEditorPanel) {
+                    // Create minimized indicator
+                    if (!document.getElementById('minimizedMapEditor')) {
+                        const indicator = document.createElement('div');
+                        indicator.id = 'minimizedMapEditor';
+                        indicator.textContent = 'Map Editor (Minimized)';
+                        indicator.style.position = 'fixed';
+                        indicator.style.bottom = '10px';
+                        indicator.style.right = '10px';
+                        indicator.style.backgroundColor = '#2a2a2a';
+                        indicator.style.color = 'white';
+                        indicator.style.padding = '8px 15px';
+                        indicator.style.borderRadius = '4px';
+                        indicator.style.cursor = 'pointer';
+                        indicator.style.zIndex = '999';
+                        indicator.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+                        indicator.style.display = 'flex';
+                        indicator.style.alignItems = 'center';
+                        indicator.style.gap = '8px';
+                        indicator.style.fontSize = '14px';
+                        
+                        // Add restore icon
+                        indicator.innerHTML = `
+                            <span>🗺️</span>
+                            <span>Map Editor (Minimized)</span>
+                        `;
+                        
+                        indicator.addEventListener('click', () => {
+                            indicator.remove();
+                            if (mapEditorPanel) mapEditorPanel.style.display = 'flex';
+                        });
+                        
+                        document.body.appendChild(indicator);
+                    }
+                    
+                    mapEditorPanel.style.display = 'none';
+                }
+                break;
+                
+            case 'closeMapEditor':
+                if (mapEditorPanel) {
+                    // Confirm before closing
+                    if (confirm('Are you sure you want to close the Map Editor? Unsaved changes will be lost.')) {
+                        mapEditorPanel.remove();
+                        const indicator = document.getElementById('minimizedMapEditor');
+                        if (indicator) indicator.remove();
+                    }
+                }
+                break;
+                
+            case 'fullscreenMapEditor':
+                if (mapEditorPanel) {
+                    // Toggle fullscreen mode
+                    if (!document.fullscreenElement) {
+                        // Enter fullscreen
+                        if (mapEditorPanel.requestFullscreen) {
+                            mapEditorPanel.requestFullscreen();
+                        } else if (mapEditorPanel.webkitRequestFullscreen) { // Safari
+                            mapEditorPanel.webkitRequestFullscreen();
+                        } else if (mapEditorPanel.msRequestFullscreen) { // IE11
+                            mapEditorPanel.msRequestFullscreen();
+                        }
+                    } else {
+                        // Exit fullscreen
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) { // Safari
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) { // IE11
+                            document.msExitFullscreen();
+                        }
+                    }
+                }
+                break;
+        }
     }
     
     /**
@@ -968,38 +1131,139 @@ class PlayerController {
      * Generate random moves for a Pokemon based on types
      */
     generateRandomMoves(type1, type2) {
+        // Extended move sets with at least 13 moves per type
         const moveSets = {
-            normal: ['Tackle', 'Quick Attack', 'Body Slam', 'Take Down'],
-            fire: ['Ember', 'Flame Wheel', 'Fire Spin', 'Flamethrower'],
-            water: ['Water Gun', 'Bubble', 'Water Pulse', 'Surf'],
-            electric: ['Thunder Shock', 'Spark', 'Thunder Wave', 'Thunderbolt'],
-            grass: ['Vine Whip', 'Razor Leaf', 'Sleep Powder', 'Solar Beam'],
-            poison: ['Poison Sting', 'Sludge', 'Toxic', 'Poison Gas'],
-            flying: ['Gust', 'Wing Attack', 'Aerial Ace', 'Air Slash'],
-            bug: ['String Shot', 'Bug Bite', 'Leech Life', 'Pin Missile'],
-            rock: ['Rock Throw', 'Rock Slide', 'Stealth Rock', 'Stone Edge'],
-            ground: ['Mud Shot', 'Earthquake', 'Dig', 'Earth Power']
+            normal: [
+                'Tackle', 'Quick Attack', 'Scratch', 'Pound', 'Double Slap', 
+                'Comet Punch', 'Mega Punch', 'Fire Punch', 'Ice Punch', 'Thunder Punch',
+                'Slash', 'Body Slam', 'Take Down', 'Double-Edge', 'Hyper Beam'
+            ],
+            fire: [
+                'Ember', 'Scratch', 'Fire Fang', 'Fire Spin', 'Flame Wheel', 
+                'Flame Burst', 'Fire Blast', 'Flamethrower', 'Eruption', 'Heat Wave',
+                'Inferno', 'Lava Plume', 'Magma Storm', 'Overheat'
+            ],
+            water: [
+                'Water Gun', 'Bubble', 'Water Pulse', 'Aqua Jet', 'Bubble Beam',
+                'Brine', 'Scald', 'Surf', 'Hydro Pump', 'Water Spout',
+                'Aqua Tail', 'Crabhammer', 'Muddy Water', 'Origin Pulse'
+            ],
+            electric: [
+                'Thunder Shock', 'Thunder Wave', 'Spark', 'Thunder Fang', 'Shock Wave',
+                'Charge Beam', 'Thunderbolt', 'Thunder', 'Volt Tackle', 'Zap Cannon',
+                'Discharge', 'Electro Ball', 'Thunder Punch', 'Wild Charge'
+            ],
+            grass: [
+                'Vine Whip', 'Absorb', 'Mega Drain', 'Razor Leaf', 'Giga Drain',
+                'Seed Bomb', 'Petal Dance', 'Solar Beam', 'Wood Hammer', 'Leaf Blade',
+                'Energy Ball', 'Leaf Storm', 'Power Whip', 'Sleep Powder'
+            ],
+            poison: [
+                'Poison Sting', 'Acid', 'Poison Fang', 'Poison Tail', 'Sludge',
+                'Smog', 'Sludge Bomb', 'Poison Jab', 'Gunk Shot', 'Cross Poison',
+                'Toxic', 'Venoshock', 'Acid Spray', 'Belch'
+            ],
+            flying: [
+                'Gust', 'Peck', 'Wing Attack', 'Air Cutter', 'Aerial Ace',
+                'Air Slash', 'Drill Peck', 'Sky Attack', 'Hurricane', 'Bounce',
+                'Brave Bird', 'Oblivion Wing', 'Roost', 'Tailwind'
+            ],
+            bug: [
+                'Bug Bite', 'String Shot', 'Bug Buzz', 'Fury Cutter', 'Leech Life',
+                'Pin Missile', 'Signal Beam', 'X-Scissor', 'Bug Bite', 'Steamroller',
+                'Megahorn', 'Struggle Bug', 'U-Turn', 'Sticky Web'
+            ],
+            rock: [
+                'Rock Throw', 'Rock Slide', 'Rock Tomb', 'Rock Blast', 'Ancient Power',
+                'Stone Edge', 'Rock Polish', 'Rock Wrecker', 'Head Smash', 'Smack Down',
+                'Rollout', 'Stealth Rock', 'Sandstorm', 'Diamond Storm'
+            ],
+            ground: [
+                'Mud Shot', 'Mud Slap', 'Dig', 'Magnitude', 'Earth Power',
+                'Mud Bomb', 'Bulldoze', 'Earthquake', 'Fissure', 'Sand Tomb',
+                'Drill Run', 'Bone Club', 'Bonemerang', 'Precipice Blades'
+            ],
+            fighting: [
+                'Karate Chop', 'Low Kick', 'Double Kick', 'Jump Kick', 'Rolling Kick',
+                'Brick Break', 'Focus Blast', 'Close Combat', 'High Jump Kick', 'Cross Chop',
+                'Drain Punch', 'Dynamic Punch', 'Hammer Arm', 'Aura Sphere'
+            ],
+            psychic: [
+                'Confusion', 'Psybeam', 'Psywave', 'Psychic', 'Psyshock',
+                'Extrasensory', 'Zen Headbutt', 'Future Sight', 'Dream Eater', 'Teleport',
+                'Calm Mind', 'Psycho Cut', 'Stored Power', 'Synchronoise'
+            ],
+            ice: [
+                'Powder Snow', 'Ice Shard', 'Aurora Beam', 'Ice Beam', 'Blizzard',
+                'Icy Wind', 'Hail', 'Ice Punch', 'Avalanche', 'Ice Fang',
+                'Sheer Cold', 'Freeze-Dry', 'Glaciate', 'Icicle Crash'
+            ],
+            ghost: [
+                'Lick', 'Night Shade', 'Shadow Sneak', 'Confuse Ray', 'Shadow Ball',
+                'Hex', 'Ominous Wind', 'Curse', 'Destiny Bond', 'Nightmare',
+                'Phantom Force', 'Shadow Claw', 'Grudge', 'Moongeist Beam'
+            ],
+            dragon: [
+                'Twister', 'Dragon Breath', 'Dragon Rage', 'Dragon Pulse', 'Dragon Claw',
+                'Dragon Rush', 'Dragon Tail', 'Outrage', 'Draco Meteor', 'Roar of Time',
+                'Core Enforcer', 'Clanging Scales', 'Dragon Hammer', 'Devastating Drake'
+            ],
+            dark: [
+                'Bite', 'Pursuit', 'Feint Attack', 'Crunch', 'Dark Pulse',
+                'Night Slash', 'Sucker Punch', 'Foul Play', 'Nasty Plot', 'Assurance',
+                'Embargo', 'Punishment', 'Thief', 'Wicked Blow'
+            ],
+            steel: [
+                'Metal Claw', 'Iron Defense', 'Bullet Punch', 'Metal Sound', 'Iron Head',
+                'Steel Wing', 'Flash Cannon', 'Iron Tail', 'Metal Burst', 'Heavy Slam',
+                'Autotomize', 'Shift Gear', 'Gear Grind', 'Sunsteel Strike'
+            ],
+            fairy: [
+                'Fairy Wind', 'Charm', 'Disarming Voice', 'Draining Kiss', 'Moonblast',
+                'Dazzling Gleam', 'Play Rough', 'Fairy Tail', 'Light of Ruin', 'Sparkling Aria',
+                'Floral Healing', 'Nature\'s Madness', 'Decorate', 'Spirit Break'
+            ]
         };
         
         const moves = [];
         
-        // Add moves from primary type
+        // Add moves from primary type (1-2 moves)
         if (moveSets[type1]) {
             const primaryMoves = moveSets[type1];
-            moves.push(primaryMoves[Math.floor(Math.random() * primaryMoves.length)]);
-            if (primaryMoves.length > 1 && Math.random() > 0.5) {
-                moves.push(primaryMoves[Math.floor(Math.random() * primaryMoves.length)]);
+            // Add 1-2 moves from primary type
+            const primaryMoveCount = Math.floor(Math.random() * 2) + 1;
+            for (let i = 0; i < primaryMoveCount && moves.length < 4; i++) {
+                const randomMove = primaryMoves[Math.floor(Math.random() * primaryMoves.length)];
+                if (!moves.includes(randomMove)) {
+                    moves.push(randomMove);
+                }
             }
         }
         
-        // Add moves from secondary type
-        if (type2 && moveSets[type2] && Math.random() > 0.3) {
+        // Add moves from secondary type (0-2 moves)
+        if (type2 && moveSets[type2]) {
             const secondaryMoves = moveSets[type2];
-            moves.push(secondaryMoves[Math.floor(Math.random() * secondaryMoves.length)]);
+            // Add 0-2 moves from secondary type
+            const secondaryMoveCount = Math.floor(Math.random() * 3);
+            for (let i = 0; i < secondaryMoveCount && moves.length < 4; i++) {
+                const randomMove = secondaryMoves[Math.floor(Math.random() * secondaryMoves.length)];
+                if (!moves.includes(randomMove)) {
+                    moves.push(randomMove);
+                }
+            }
         }
         
-        // Add normal moves if needed
-        while (moves.length < 2) {
+        // Add one action-based move with 30% probability
+        if (Math.random() < 0.3 && moveSets.action && moves.length < 4) {
+            const actionMoves = moveSets.action;
+            const randomMove = actionMoves[Math.floor(Math.random() * actionMoves.length)];
+            if (!moves.includes(randomMove)) {
+                moves.push(randomMove);
+            }
+        }
+        
+        // Fill remaining slots with normal moves
+        while (moves.length < 4) {
             const normalMoves = moveSets.normal;
             const randomMove = normalMoves[Math.floor(Math.random() * normalMoves.length)];
             if (!moves.includes(randomMove)) {
@@ -1007,7 +1271,7 @@ class PlayerController {
             }
         }
         
-        // Limit to 4 moves maximum
+        // Ensure we have exactly 4 moves
         return moves.slice(0, 4);
     }
     
@@ -1055,7 +1319,24 @@ class PlayerController {
     }
 }
 
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = PlayerController;
-}
+// Enhanced export at the end of player.js
+(function(global) {
+    'use strict';
+    
+    // CommonJS export
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = PlayerController;
+    }
+    
+    // AMD export
+    if (typeof define === 'function' && define.amd) {
+        define(function() {
+            return PlayerController;
+        });
+    }
+    
+    // Global export
+    global.PlayerController = PlayerController;
+    
+    console.log('PlayerController exported successfully, type:', typeof global.PlayerController);
+})(typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : this);

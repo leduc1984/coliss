@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const Redis = require('redis');
 require('dotenv').config();
 
 // Import routes and services
@@ -128,8 +129,23 @@ app.get('/pokemon-map-editor/*', (req, res) => {
 
 // Initialize services
 const chatService = new ChatService(io);
-const gameService = new GameService(io);
-const battleService = new BattleService(io);
+
+// Redis configuration
+const redisClient = Redis.createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+
+redisClient.connect()
+  .then(() => console.log('\x1b[32m✅ Redis connected successfully at', process.env.REDIS_URL || 'redis://localhost:6379', '\x1b[0m'))
+  .catch(err => console.error('\x1b[31m❌ Redis connection failed:', err.message, '\x1b[0m'));
+
+redisClient.on('error', (err) => {
+  console.error('\x1b[31m❌ Redis client error:', err.message, '\x1b[0m');
+});
+
+// Initialize services with Redis client
+const gameService = new GameService(io, redisClient);
+const battleService = new BattleService(io, redisClient);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -139,6 +155,25 @@ app.use('/api/pokemon', pokemonRoutes);
 app.use('/api/pokemons', pokemonRoutes);
 // Types and sprites routes with specific pattern
 app.use('/api', pokemonRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    services: {
+      server: 'running',
+      database: 'connected',
+      redis: redisClient.isReady ? 'connected' : 'disconnected',
+      socketIO: 'active'
+    },
+    redisDetails: {
+      url: process.env.REDIS_URL || 'redis://localhost:6379',
+      status: redisClient.isReady ? 'connected' : 'disconnected',
+      lastError: redisClient.isReady ? null : 'Check server logs for details'
+    }
+  });
+});
 
 // Map Editor API Routes
 const multer = require('multer');
@@ -330,6 +365,12 @@ const startServer = async () => {
     console.log('🔄 Initializing database...');
     await createTables();
     
+    // Check Redis connection status
+    const redisStatus = redisClient.isReady ? 
+      '\x1b[42m\x1b[30m CONNECTED \x1b[0m' : 
+      '\x1b[41m\x1b[37m DISCONNECTED \x1b[0m';
+    console.log('\x1b[36m\x1b[1m\n====== Redis Status: ' + redisStatus + ' ======\x1b[0m');
+    
     server.listen(PORT, () => {
       console.log(`🚀 Pokemon MMO Server running on port ${PORT}`);
       console.log(`🎮 Game available at: http://localhost:${PORT}`);
@@ -341,6 +382,23 @@ const startServer = async () => {
   }
 };
 
+// Graceful shutdown handler
+process.on('SIGINT', async () => {
+  console.log('Shutting down server...');
+  
+  // Close Redis connection
+  if (redisClient.isReady) {
+    await redisClient.quit();
+    console.log('Redis connection closed');
+  }
+  
+  // Close server
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
 startServer();
 
-module.exports = { app, server, io, battleService };
+module.exports = { app, server, io, battleService, redisClient };

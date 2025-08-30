@@ -195,6 +195,17 @@ class PlayerController {
                 }
                 if (event.preventDefault) event.preventDefault();
                 break;
+            case 'F2':
+                // Launch Babylon.js Inspector to investigate visual objects
+                if (this.scene && this.scene.debugLayer) {
+                    if (this.scene.debugLayer.isVisible()) {
+                        this.scene.debugLayer.hide();
+                    } else {
+                        this.scene.debugLayer.show();
+                    }
+                }
+                if (event.preventDefault) event.preventDefault();
+                break;
             case 'F5':
                 // Refresh ORAS experience
                 if (window.gameManager && window.gameManager.refreshORASExperience) {
@@ -397,11 +408,11 @@ class PlayerController {
             moved = true;
         }
         if (this.inputMap.left) {
-            moveVector.x -= 1; // Move west (negative X)
+            moveVector.x += 1; // Move east (positive X) - Fix: changed from -= to +=
             moved = true;
         }
         if (this.inputMap.right) {
-            moveVector.x += 1; // Move east (positive X)
+            moveVector.x -= 1; // Move west (negative X) - Fix: changed from += to -=
             moved = true;
         }
 

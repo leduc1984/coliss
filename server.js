@@ -197,6 +197,13 @@ const upload = multer({
     }
 });
 
+// Add the missing endpoint for map objects
+app.get('/api/editor/map-objects', (req, res) => {
+    // Return empty array as temporary fix
+    // This will be updated later to fetch actual map object data from the database
+    res.status(200).json([]);
+});
+
 // Serve dev-tools statically
 app.use('/dev-tools/dialogue-editor', express.static(path.join(__dirname, 'dev-tools/dialogue-editor/build')));
 app.use('/dev-tools/ui-editor', express.static(path.join(__dirname, 'dev-tools/ui-editor/build')));

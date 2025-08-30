@@ -1,4 +1,36 @@
 window.addEventListener('DOMContentLoaded', () => {
+    // History management class - Moved to the top to avoid initialization error
+    class History {
+        constructor() {
+            this.states = [];
+            this.position = -1;
+        }
+
+        saveState(state) {
+            if (this.position < this.states.length - 1) {
+                this.states = this.states.slice(0, this.position + 1);
+            }
+            this.states.push(state);
+            this.position++;
+        }
+
+        undo() {
+            if (this.position > 0) {
+                this.position--;
+                return this.states[this.position];
+            }
+            return null;
+        }
+
+        redo() {
+            if (this.position < this.states.length - 1) {
+                this.position++;
+                return this.states[this.position];
+            }
+            return null;
+        }
+    }
+
     // --- Initialisation ---
     const canvas = document.getElementById("renderCanvas");
     const engine = new BABYLON.Engine(canvas, true);
@@ -165,6 +197,47 @@ window.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     
     /**
+     * Initialize window controls for the editor
+     */
+    function initWindowControls() {
+        // Get window control buttons
+        const closeBtn = document.getElementById('closeEditorBtn');
+        const minimizeBtn = document.getElementById('minimizeEditorBtn');
+        const fullscreenBtn = document.getElementById('fullscreenEditorBtn');
+        
+        // Add event listeners for window controls
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                // Close the editor (redirect to main game)
+                window.location.href = '/';
+            });
+        }
+        
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', () => {
+                // Minimize the editor (this would typically minimize the window)
+                console.log('Minimize editor button clicked');
+                // For now, just log the action
+            });
+        }
+        
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                // Toggle fullscreen mode
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+        }
+        
+        console.log('Window controls initialized');
+    }
+    
+    /**
      * Load Pokemon data and initialize Pokemon-related functionality
      */
     function loadPokemonData() {
@@ -214,29 +287,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    /**
-     * Open the Pokemon sprite selector modal
-     */
-    function openPokemonSpriteSelector() {
-        const spriteSelectorModal = document.getElementById('spriteSelectorModal');
-        const spriteGridContainer = document.getElementById('spriteGridContainer');
-        
-        if (!spriteSelectorModal || !spriteGridContainer) {
-            console.error('Pokemon sprite selector modal elements not found');
-            return;
-        }
-        
-        // Clear previous content
-        spriteGridContainer.innerHTML = '';
-        
-        // Check if sprite manager is available
-        if (typeof pokemonSpriteManager === 'undefined') {
-            spriteGridContainer.innerHTML = '<p style="text-align: center; color: #ccc; padding: 20px;">Pokemon sprite manager not available</p>';
-            spriteSelectorModal.classList.add('active');
-            return;
-        }
-        
-        // Create Pokemon sprite selector
         pokemonSpriteManager.createSpriteSelector('spriteGridContainer', (pokemonId, pokemonData) => {
             // Handle Pokemon selection
             console.log('Selected Pokemon:', pokemonId, pokemonData);
@@ -1909,44 +1959,84 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // History management class
-    class History {
-        constructor() {
-            this.states = [];
-            this.currentIndex = -1;
-            this.maxStates = 50;
+
+    
+    // --- Initialisation ---
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.2, 0.2, 0.3, 1);
+    scene.collisionsEnabled = true;
+
+    // --- Variables Globales ---
+    let loadedMeshes = [];
+    let collisionMeshes = []; // New array for collision meshes
+    let selectedMesh = null;
+    let editorMode = 'EDIT';
+    let currentTool = 'SELECT'; // SELECT, POKEMON_ZONE, NPC_PLACE, WARP_POINT
+    let history;
+    
+    // Initialize History after the class has been loaded
+    setTimeout(() => {
+        history = new History();
+        // Initial history save
+        saveStateToHistory();
+    }, 0);
+    
+    // --- Fonctions ---
+    function createScene() {
+        // Ajouter une caméra
+        const camera = new BABYLON.FreeCamera("camera", new BABYLON.Vector3(0, 10, -10), scene);
+        camera.attachControl(canvas, true);
+        camera.checkCollisions = true;
+        camera.minZ = 0.3;
+
+        // Ajouter une lumière
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+        // Ajouter une grille pour visualiser l'origine du monde
+        const gridHelper = BABYLON.MeshBuilder.CreateGround("groundHelper", { width: 20, height: 20 }, scene);
+        const gridMaterial = new BABYLON.GridMaterial("gridMaterial", scene);
+        gridHelper.material = gridMaterial;
+
+        // Ajouter des objets 3D (meshes)
+        BABYLON.SceneLoader.ImportMesh("", "models/", "object.babylon", scene, (meshes) => {
+            loadedMeshes = meshes;
+            meshes.forEach(mesh => {
+                mesh.checkCollisions = true;
+                collisionMeshes.push(mesh);
+                mesh.instanceId = generateUUID(); // Assign unique instance ID to each mesh
+                mesh.objectId = mesh.instanceId; // Set object ID to instance ID initially
+                saveStateToHistory();
+            });
+        });
+    }
+
+    function saveStateToHistory() {
+        const state = [];
+        loadedMeshes.forEach(mesh => {
+            state.push({
+                position: {
+                    x: mesh.position.x,
+                    y: mesh.position.y,
+                    z: mesh.position.z
+                },
+                rotation: {
+                    x: mesh.rotation.x,
+                    y: mesh.rotation.y,
+                    z: mesh.rotation.z
+                },
+                scaling: {
+                    x: mesh.scaling.x,
+                    y: mesh.scaling.y,
+                    z: mesh.scaling.z
+                },
+                instanceId: mesh.instanceId,
+                objectId: mesh.objectId
+            }));
         }
         
-        push(state) {
-            // Remove any states after current index
-            this.states = this.states.slice(0, this.currentIndex + 1);
-            
-            // Add new state
-            this.states.push(JSON.parse(JSON.stringify(state)));
-            this.currentIndex++;
-            
-            // Limit history size
-            if (this.states.length > this.maxStates) {
-                this.states.shift();
-                this.currentIndex--;
-            }
-        }
-        
-        undo() {
-            if (this.currentIndex > 0) {
-                this.currentIndex--;
-                return this.states[this.currentIndex];
-            }
-            return null;
-        }
-        
-        redo() {
-            if (this.currentIndex < this.states.length - 1) {
-                this.currentIndex++;
-                return this.states[this.currentIndex];
-            }
-            return null;
-        }
+        history.push(state);
     }
     
     // Pokemon zone creation function placeholders

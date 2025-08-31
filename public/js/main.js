@@ -1,3 +1,48 @@
+<<<<<<< HEAD
+// Main application controller
+class PokemonMMO {
+    constructor() {
+        this.isInitialized = false;
+        this.currentScreen = 'auth';
+        this.mainUI = null;
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            this.init();
+        }
+    }
+
+    init() {
+        console.log('🎮 Initializing Pokemon MMO...');
+        
+        // Check if user is already logged in
+        this.checkExistingSession();
+        
+        // Setup global error handling
+        this.setupErrorHandling();
+        
+        // Setup window events
+        this.setupWindowEvents();
+        
+        // Initialize main UI
+        this.initializeMainUI();
+        
+        console.log('✅ Pokemon MMO initialized');
+        this.isInitialized = true;
+    }
+    
+    initializeMainUI() {
+        // Initialize the main UI components
+        if (typeof MainUI !== 'undefined') {
+            this.mainUI = new MainUI();
+            console.log('🎨 Main UI initialized');
+        } else {
+            console.warn('⚠️ MainUI class not found, UI components may not work');
+        }
+    }
+=======
 // Main application controller, encapsulated to avoid global scope pollution
 (function() {
     'use strict';
@@ -47,6 +92,7 @@
                 document.head.appendChild(styles);
             }
         },
+>>>>>>> fd63a9deaee7b81a36ca4e0b566595344472f5ca
 
         showError(message) {
             console.error('Application error:', message);

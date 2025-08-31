@@ -1,107 +1,40 @@
-class GameManager {
-    constructor() {
-        this.engine = null;
-        this.scene = null;
-        this.camera = null;
-        this.player = null;
-        this.currentMap = null;
-        this.currentMapName = 'matrix1'; // Track current map name
-        this.socket = null;
-        this.user = null;
-        this.isInitialized = false;
-        this.otherPlayers = new Map();
-        this.teleportPromptShown = false; // Prevent multiple prompts
-        this.controlsDisabled = false; // Pour gérer la désactivation des contrôles
-        this.disabledBy = new Set(); // Qui a désactivé les contrôles (ex: 'chat', 'battle')
-        this.loadingProgress = 0; // Track loading progress
-        
-        // Fade transition properties
-        this.fadePlane = null;
-        this.fadeMaterial = null;
-        this.isFading = false;
-        this.fadeDirection = null; // 'in' or 'out'
-        
-        // Preloading system
-        this.preloadedMaps = new Map(); // Map of preloaded map data
-        this.adjacentMaps = new Map(); // Map of adjacent maps for current map
-        this.preloadingEnabled = true; // Whether preloading is enabled
-        
-        // Performance profiling
-        this.performanceMetrics = {
-            loadingTimes: [], // History of loading times
-            assetLoadTimes: new Map(), // Load times for individual assets
-            frameRates: [], // Frame rate history
-            memoryUsage: [] // Memory usage history
-        };
-        this.profilingEnabled = true; // Whether profiling is enabled
-        this.loadingStartTime = null; // Start time of current loading operation
-    }
+// IIFE to encapsulate the game logic and avoid global scope pollution
+(function() {
+    'use strict';
 
-    async initialize(user, token) {
-        this.user = user;
+    // --- Configuration Object ---
+    const Config = {
+        DEFAULT_MAP: 'drewfort',
+        PLAYER_MODEL_PATH: 'calem/calem.glb',
+        PLAYER_MODEL_SCALE: new BABYLON.Vector3(1.5, 1.5, 1.5),
+        PLAYER_CAPSULE_IMPOSTOR: { mass: 1, restitution: 0.1, friction: 0.5 },
+        PLAYER_COLLISION_ELLIPSOID: new BABYLON.Vector3(0.4, 0.8, 0.4),
+        PLAYER_COLLISION_ELLIPSOID_OFFSET: new BABYLON.Vector3(0, 0.8, 0),
         
-        try {
-            // Start profiling initialization
-            this.startProfiling('Game Initialization');
-            
-            // Show loading progress
-            this.updateLoadingText('Initializing 3D engine...');
-            this.updateLoadingProgress(10);
-            
-            // Initialize Babylon.js
-            await this.initializeBabylon();
-            this.updateLoadingProgress(30, 'Connecting to server...');
-            
-            // Initialize socket connection
-            await this.initializeSocket(token);
-            this.updateLoadingProgress(50, 'Loading map...');
-            
-            // --- BUG FIX: Load the map defined for the character or default map ---
-            // Ensure we use a valid map name and provide detailed logging
-            const startMap = this.user.character?.currentMap || 'matrix1';
-            console.log(`🗺️ Starting to load map: ${startMap} for user ${this.user.username}`);
-            try {
-                await this.loadMap(startMap);
-                console.log(`✅ Successfully loaded map: ${startMap}`);
-            } catch (mapError) {
-                console.error(`❌ Failed to load map ${startMap}:`, mapError);
-                // Fallback to matrix1 if the character's map fails to load
-                if (startMap !== 'matrix1') {
-                    console.log(`🔄 Attempting to load fallback map: matrix1`);
-                    await this.loadMap('matrix1');
-                }
+        MAP_CONFIGS: {
+            'house_inside': { path: '/pokemon-map-editor/assets/maps/male_house_inside/house.glb', rotation: Math.PI },
+            'drewfort': { path: '/pokemon-map-editor/assets/maps/Drewfort/drewfort.glb' },
+            'fortree_city': { path: '/pokemon-map-editor/assets/maps/Fortree City/Fortree City.glb' },
+            'slateport_city': { path: '/pokemon-map-editor/assets/maps/Slateport City/Slateport City.glb' },
+            'sootopolis_city': { path: '/pokemon-map-editor/assets/maps/Sootopolis City/Sootopolis City.glb' },
+            'shoal_cave_entrance_low': { path: '/pokemon-map-editor/assets/maps/Shoal cave/Entrance Room (Low Tide).glb' },
+            'shoal_cave_ice_room': { path: '/pokemon-map-editor/assets/maps/Shoal cave/Ice Room.glb' },
+            'granite_cave': { path: '/pokemon-map-editor/assets/maps/Granite Cave Origin Room/Granite Cave Origin Room.glb' },
+            'fallarbor_town': { path: '/pokemon-map-editor/assets/maps/Fallarbor Town/Fallarbor Town.glb' },
+            'castle_village': { path: '/pokemon-map-editor/assets/maps/castle village/castle_village_scene.glb' },
+            'soaring_overworld': { path: '/pokemon-map-editor/assets/maps/soaring overworld/soaring.glb' },
+            'lavaridge_town': { path: '/pokemon-map-editor/assets/maps/Lavaridge Town/Lavaridge Town.glb' },
+            'matrix': { path: '/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb', collisionPath: '/pokemon-map-editor/assets/maps/perso/matrix/matrix1_collision.glb', rotation: -Math.PI / 2, isLargeMap: true },
+            'matrix1': {
+                path: '/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb',
+                collisionPath: '/pokemon-map-editor/assets/maps/perso/matrix/matrix1_collision.glb',
+                rotation: -Math.PI / 2,
+                isLargeMap: true,
+                cameraSettings: { alpha: -Math.PI / 2, beta: Math.PI / 4, radius: 25 }
             }
-            this.updateLoadingProgress(70, 'Creating player...');
-            
-            // Create player
-            await this.createPlayer();
-            this.updateLoadingProgress(80, 'Setting up controls...');
-            
-            // Setup controls and UI
-            this.setupControls();
-            this.setupUI();
-            this.updateLoadingProgress(90);
-            
-            // Start the game
-            this.startGame();
-            this.updateLoadingProgress(100, 'Starting game...');
-            
-            // End profiling
-            this.endProfiling('Game Initialization');
-            
-        } catch (error) {
-            console.error('Game initialization error:', error);
-            this.showError('Failed to start game. Please refresh and try again.');
-        }
-    }
-
-    /**
-     * Start performance profiling
-     * @param {string} operation - Name of the operation being profiled
-     */
-    startProfiling(operation) {
-        if (!this.profilingEnabled) return;
+        },
         
+<<<<<<< HEAD
         this.loadingStartTime = performance.now();
         console.log(`⏱️ Starting profiling for: ${operation}`);
     }
@@ -699,708 +632,37 @@ class GameManager {
      */
     getAdjacentMaps(currentMap) {
         const adjacencyMap = {
+=======
+        ADJACENCY_MAP: {
+>>>>>>> fd63a9deaee7b81a36ca4e0b566595344472f5ca
             'house_inside': ['drewfort'],
             'drewfort': ['house_inside', 'fortree_city'],
             'fortree_city': ['drewfort', 'slateport_city'],
             'slateport_city': ['fortree_city', 'sootopolis_city'],
             'sootopolis_city': ['slateport_city'],
             'matrix': ['drewfort']
-        };
-        
-        return adjacencyMap[currentMap] || [];
-    }
-    
-    /**
-     * Preload adjacent maps
-     * @param {string} currentMap - Current map name
-     */
-    async preloadAdjacentMaps(currentMap) {
-        if (!this.preloadingEnabled) return;
-        
-        const adjacentMaps = this.getAdjacentMaps(currentMap);
-        console.log(`🗺️ Preloading adjacent maps for ${currentMap}:`, adjacentMaps);
-        
-        // Preload each adjacent map
-        for (const mapName of adjacentMaps) {
-            try {
-                // Skip if already preloaded
-                if (this.preloadedMaps.has(mapName)) {
-                    console.log(`⏭️ Map ${mapName} already preloaded, skipping`);
-                    continue;
-                }
-                
-                // Define map configurations
-                const mapConfigs = {
-                    'house_inside': {
-                        path: `/pokemon-map-editor/assets/maps/male_house_inside/house.glb`
-                    },
-                    'drewfort': {
-                        path: `/pokemon-map-editor/assets/maps/Drewfort/drewfort.glb`
-                    },
-                    'fortree_city': {
-                        path: `/pokemon-map-editor/assets/maps/Fortree City/fortree.glb`
-                    },
-                    'slateport_city': {
-                        path: `/pokemon-map-editor/assets/maps/Slateport City/Slateport City.glb`
-                    },
-                    'sootopolis_city': {
-                        path: `/pokemon-map-editor/assets/maps/Sootopolis City/Sootopolis City.glb`
-                    },
-                    'matrix': {
-                        path: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb`
-                    }
-                };
-                
-                const mapConfig = mapConfigs[mapName];
-                if (!mapConfig) {
-                    console.warn(`⚠️ No configuration found for map: ${mapName}`);
-                    continue;
-                }
-                
-                console.log(`📥 Preloading map: ${mapName}`);
-                
-                // Use fetch API to download the map file without parsing it
-                const response = await fetch(mapConfig.path);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch map ${mapName}: ${response.status} ${response.statusText}`);
-                }
-                
-                // Get the array buffer
-                const arrayBuffer = await response.arrayBuffer();
-                
-                // Store preloaded data
-                this.preloadedMaps.set(mapName, {
-                    data: arrayBuffer,
-                    timestamp: Date.now(),
-                    size: arrayBuffer.byteLength
-                });
-                
-                console.log(`✅ Preloaded map ${mapName} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
-                
-                // Update adjacent maps tracking
-                this.adjacentMaps.set(mapName, this.getAdjacentMaps(mapName));
-                
-            } catch (error) {
-                console.error(`❌ Failed to preload map ${mapName}:`, error);
-            }
-        }
-    }
-    
-    /**
-     * Clear old preloaded maps to free memory
-     * @param {number} maxAge - Maximum age in milliseconds (default 5 minutes)
-     */
-    clearOldPreloadedMaps(maxAge = 5 * 60 * 1000) {
-        const now = Date.now();
-        let clearedCount = 0;
-        
-        for (const [mapName, mapData] of this.preloadedMaps.entries()) {
-            if (now - mapData.timestamp > maxAge) {
-                this.preloadedMaps.delete(mapName);
-                clearedCount++;
-                console.log(`🗑️ Cleared old preloaded map: ${mapName}`);
-            }
-        }
-        
-        if (clearedCount > 0) {
-            console.log(`🧹 Cleared ${clearedCount} old preloaded maps`);
-        }
-    }
-    
-    /**
-     * Get preloaded map data
-     * @param {string} mapName - Name of the map
-     * @returns {ArrayBuffer|null} Preloaded map data or null if not available
-     */
-    getPreloadedMapData(mapName) {
-        const mapData = this.preloadedMaps.get(mapName);
-        return mapData ? mapData.data : null;
-    }
-    
-    /**
-     * Check if a map is preloaded
-     * @param {string} mapName - Name of the map
-     * @returns {boolean} Whether the map is preloaded
-     */
-    isMapPreloaded(mapName) {
-        return this.preloadedMaps.has(mapName);
-    }
+        },
 
-    async loadMap(mapName) {
-        try {
-            // Start profiling map loading
-            this.startProfiling(`Load Map: ${mapName}`);
-            
-            // Clear existing map and collision meshes
-            if (this.currentMap) {
-                this.currentMap.dispose();
-            }
-            if (this.currentCollisionMeshes) {
-                this.currentCollisionMeshes.forEach(mesh => mesh.dispose());
-                this.currentCollisionMeshes = [];
-            }
-            
-            // Define map configurations
-            const mapConfigs = {
-                'house_inside': {
-                    path: `/pokemon-map-editor/assets/maps/male_house_inside/house.glb`,
-                    rotation: Math.PI // 180 degrees rotation to face the proper direction
-                },
-                'drewfort': {
-                    path: `/pokemon-map-editor/assets/maps/Drewfort/drewfort.glb`
-                },
-                'fortree_city': {
-                    path: `/pokemon-map-editor/assets/maps/Fortree City/Fortree City.glb`
-                },
-                'slateport_city': {
-                    path: `/pokemon-map-editor/assets/maps/Slateport City/Slateport City.glb`
-                },
-                'sootopolis_city': {
-                    path: `/pokemon-map-editor/assets/maps/Sootopolis City/Sootopolis City.glb`
-                },
-                'shoal_cave_entrance_low': {
-                    path: `/pokemon-map-editor/assets/maps/Shoal cave/Entrance Room (Low Tide).glb`
-                },
-                'shoal_cave_ice_room': {
-                    path: `/pokemon-map-editor/assets/maps/Shoal cave/Ice Room.glb`
-                },
-                'granite_cave': {
-                    path: `/pokemon-map-editor/assets/maps/Granite Cave Origin Room/Granite Cave Origin Room.glb`
-                },
-                'fallarbor_town': {
-                    path: `/pokemon-map-editor/assets/maps/Fallarbor Town/Fallarbor Town.glb`
-                },
-                'castle_village': {
-                    path: `/pokemon-map-editor/assets/maps/castle village/castle_village_scene.glb`
-                },
-                'soaring_overworld': {
-                    path: `/pokemon-map-editor/assets/maps/soaring overworld/soaring.glb`
-                },
-                'lavaridge_town': {
-                    path: `/pokemon-map-editor/assets/maps/Lavaridge Town/Lavaridge Town.glb`
-                },
-                'matrix': {
-                    path: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb`,
-                    collisionPath: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1_collision.glb`,
-                    rotation: -Math.PI / 2, // 90 degrees LEFT rotation
-                    isLargeMap: true
-                },
-                'matrix1': {
-                    path: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb`,
-                    collisionPath: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1_collision.glb`,
-                    rotation: -Math.PI / 2, // 90 degrees LEFT rotation
-                    isLargeMap: true,
-                    cameraSettings: {
-                        alpha: -Math.PI / 2,
-                        beta: Math.PI / 4,
-                        radius: 25
-                    }
-                }
-            };
-            
-            // Get map configuration or use default
-            const mapConfig = mapConfigs[mapName] || mapConfigs['house_inside'];
-            
-            console.log(`🗺️ Loading map: ${mapName}`);
-            if (mapConfig.collisionPath) {
-                console.log(`🔒 Map has separate collision file: ${mapConfig.collisionPath}`);
-            }
-            
-            // Update loading progress
-            this.updateLoadingProgress(55, `Loading map: ${mapName}...`);
-            
-            // Check if map is preloaded
-            let mapData = this.getPreloadedMapData(mapName);
-            let usePreloaded = false;
-            
-            if (mapData) {
-                console.log(`⚡ Using preloaded map data for ${mapName}`);
-                usePreloaded = true;
-                this.updateLoadingProgress(60, `Using preloaded data...`);
-            }
-            
-            // Use incremental loading with SceneLoader.Append for better performance
-            const loadStartTime = performance.now();
-            const result = await new Promise((resolve, reject) => {
-                if (usePreloaded && mapData) {
-                    // Load from preloaded data
-                    const blob = new Blob([mapData], { type: 'model/gltf-binary' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const assetLoadStartTime = performance.now();
-                    BABYLON.SceneLoader.ImportMesh(
-                        null, 
-                        "", 
-                        url, 
-                        this.scene,
-                        (meshes, particleSystems, skeletons, animationGroups, transformNodes, geometries, lights, cameras) => {
-                            const assetLoadTime = performance.now() - assetLoadStartTime;
-                            URL.revokeObjectURL(url);
-                            console.log(`✅ Preloaded map loaded: ${meshes.length} meshes, ${cameras.length} cameras`);
-                            this.recordAssetLoadTime(`${mapName} (preloaded)`, assetLoadTime);
-                            resolve({ loadedMeshes: meshes, loadedCameras: cameras });
-                        },
-                        null,
-                        (scene, message, exception) => {
-                            URL.revokeObjectURL(url);
-                            console.error(`❌ Error loading preloaded map:`, message, exception);
-                            reject(new Error(`Failed to load preloaded map: ${message}`));
-                        },
-                        ".glb"
-                    );
-                } else {
-                    // Load normally
-                    const assetsManager = new BABYLON.AssetsManager(this.scene);
-                    
-                    // Add main map as a mesh task
-                    console.log(`🔍 Loading map from path: ${mapConfig.path}`);
-                    const meshTask = assetsManager.addMeshTask("mapTask", "", mapConfig.path, "");
-                    
-                    meshTask.onSuccess = (task) => {
-                        const assetLoadTime = performance.now() - loadStartTime;
-                        console.log(`✅ Main map loaded: ${task.loadedMeshes.length} meshes`);
-                        // Asset load time recorded: ${assetLoadTime}ms
-                        resolve(task);
-                    };
-                    
-                    meshTask.onError = (task, message, exception) => {
-                        console.error(`❌ Error loading main map:`, message, exception);
-                        console.error(`❌ Failed path: ${mapConfig.path}`);
-                        console.error(`❌ Map name: ${mapName}`);
-                        reject(new Error(`Failed to load main map: ${message}`));
-                    };
-                    
-                    // Start loading
-                    assetsManager.load();
-                }
-            });
-            
-            if (result.loadedMeshes.length > 0) {
-                this.currentMap = result.loadedMeshes[0];
-                this.currentMapName = mapName;
-                
-                // Apply map-specific transformations
-                if (mapConfig.rotation) {
-                    result.loadedMeshes.forEach(mesh => {
-                        if (mesh.name !== '__root__') {
-                            mesh.rotation.y = mapConfig.rotation;
-                        }
-                    });
-                    console.log(`🔄 Applied rotation to ${mapName}`);
-                }
-                
-                // Find and set camera from loaded assets
-                let mapCamera = null;
-                if (result.loadedCameras && result.loadedCameras.length > 0) {
-                    // Look for a camera with a specific name first
-                    mapCamera = result.loadedCameras.find(camera => 
-                        camera.name && (camera.name.includes('MapCamera') || camera.name.includes('mapCamera'))
-                    );
-                    
-                    // If no specific camera found, use the first one
-                    if (!mapCamera && result.loadedCameras.length > 0) {
-                        mapCamera = result.loadedCameras[0];
-                        console.log(`📷 Using first camera from map: ${mapCamera.name}`);
-                    }
-                }
-                
-                // If we found a camera in the map, use it
-                if (mapCamera) {
-                    console.log(`📷 Found camera in map: ${mapCamera.name}`);
-                    this.camera = mapCamera;
-                    this.scene.activeCamera = mapCamera;
-                    
-                    // Apply ORAS camera settings to maintain consistent gameplay experience
-                    this.applyORASCameraSettings(mapCamera);
-                    
-                    // Update player controller with new camera if it exists
-                    if (this.playerController) {
-                        this.playerController.updateCamera(mapCamera);
-                    }
-                } else {
-                    console.log('📷 No camera found in map, using default ORAS camera');
-                    // Keep using the default ORAS camera that was set up during initialization
-                    // Apply specific camera settings for matrix1 map if needed
-                    if (mapConfig.cameraSettings && this.camera) {
-                        this.camera.alpha = mapConfig.cameraSettings.alpha;
-                        this.camera.beta = mapConfig.cameraSettings.beta;
-                        this.camera.radius = mapConfig.cameraSettings.radius;
-                        console.log('🔧 Applied specific camera settings for matrix1 map');
-                    }
-                }
-                
-                // Update loading progress
-                this.updateLoadingProgress(65, 'Setting up collisions...');
-                
-                // Load separate collision file if specified
-                if (mapConfig.collisionPath) {
-                    await this.loadCollisionMeshes(mapConfig.collisionPath);
-                } else {
-                    // Setup collision and interaction for regular maps
-                    this.setupMapCollisions(result.loadedMeshes);
-                }
-                
-                // Add invisible walls around the map perimeter to prevent escape
-                this.createMapBoundaries();
-                
-                // Start preloading adjacent maps
-                if (this.preloadingEnabled) {
-                    setTimeout(() => {
-                        this.preloadAdjacentMaps(mapName);
-                    }, 1000); // Delay to ensure current map is fully loaded
-                }
-                
-                console.log(`✅ Map loaded successfully: ${mapName}`);
-                this.updateLoadingProgress(75, 'Map loaded successfully');
-            } else {
-                throw new Error('No meshes found in map file');
-            }
-            
-            // End profiling
-            this.endProfiling(`Load Map: ${mapName}`);
-            
-        } catch (error) {
-            console.error('Map loading error:', error);
-            
-            // Create fallback environment
-            this.createFallbackEnvironment();
-        }
-    }
-    
-    /**
-     * Load map with incremental loading using SceneLoader.Append
-     * @param {string} mapName - Name of the map to load
-     */
-    async loadMapIncremental(mapName) {
-        try {
-            // Clear existing map and collision meshes
-            if (this.currentMap) {
-                this.currentMap.dispose();
-            }
-            if (this.currentCollisionMeshes) {
-                this.currentCollisionMeshes.forEach(mesh => mesh.dispose());
-                this.currentCollisionMeshes = [];
-            }
-            
-            // Define map configurations
-            const mapConfigs = {
-                'house_inside': {
-                    path: `/pokemon-map-editor/assets/maps/male_house_inside/house.glb`,
-                    rotation: Math.PI // 180 degrees rotation to face the proper direction
-                },
-                'drewfort': {
-                    path: `/pokemon-map-editor/assets/maps/Drewfort/drewfort.glb`
-                },
-                'matrix': {
-                    path: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1.glb`,
-                    collisionPath: `/pokemon-map-editor/assets/maps/perso/matrix/matrix1_collision.glb`,
-                    rotation: -Math.PI / 2, // 90 degrees LEFT rotation
-                    isLargeMap: true
-                }
-            };
-            
-            // Get map configuration or use default
-            const mapConfig = mapConfigs[mapName] || mapConfigs['house_inside'];
-            
-            console.log(`🗺️ Incrementally loading map: ${mapName}`);
-            
-            // Update loading progress
-            this.updateLoadingProgress(55, `Loading map: ${mapName}...`);
-            
-            // Use SceneLoader.Append for incremental loading
-            const result = await new Promise((resolve, reject) => {
-                let loadedMeshes = [];
-                let loadedMaterials = [];
-                let loadedTextures = [];
-                let loadedSkeletons = [];
-                
-                // Progress tracking
-                let totalTasks = 0;
-                let completedTasks = 0;
-                
-                // Callback for when each asset is loaded
-                const onAssetLoaded = () => {
-                    completedTasks++;
-                    const progress = 55 + Math.floor((completedTasks / Math.max(totalTasks, 1)) * 10);
-                    this.updateLoadingProgress(progress, `Loading assets: ${completedTasks}/${totalTasks}`);
-                };
-                
-                // Append the scene incrementally
-                BABYLON.SceneLoader.Append(
-                    "", 
-                    mapConfig.path, 
-                    this.scene,
-                    (scene) => {
-                        // Success callback
-                        console.log(`✅ Map appended successfully: ${mapName}`);
-                        resolve({
-                            meshes: loadedMeshes,
-                            materials: loadedMaterials,
-                            textures: loadedTextures,
-                            skeletons: loadedSkeletons
-                        });
-                    },
-                    (progress) => {
-                        // Progress callback
-                        if (progress.lengthComputable) {
-                            const percentComplete = (progress.loaded / progress.total) * 100;
-                            this.updateLoadingProgress(55 + Math.floor(percentComplete * 0.2), `Downloading: ${Math.round(percentComplete)}%`);
-                        }
-                    },
-                    (scene, message, exception) => {
-                        // Error callback
-                        console.error(`❌ Error appending map:`, message, exception);
-                        reject(new Error(`Failed to append map: ${message}`));
-                    },
-                    ".glb"
-                );
-            });
-            
-            // Process loaded assets
-            if (result.meshes && result.meshes.length > 0) {
-                this.currentMap = result.meshes[0];
-                this.currentMapName = mapName;
-                
-                // Apply map-specific transformations
-                if (mapConfig.rotation) {
-                    result.meshes.forEach(mesh => {
-                        if (mesh.name !== '__root__') {
-                            mesh.rotation.y = mapConfig.rotation;
-                        }
-                    });
-                    console.log(`🔄 Applied rotation to ${mapName}`);
-                }
-                
-                // Update loading progress
-                this.updateLoadingProgress(75, 'Setting up collisions...');
-                
-                // Load separate collision file if specified
-                if (mapConfig.collisionPath) {
-                    await this.loadCollisionMeshesIncremental(mapConfig.collisionPath);
-                } else {
-                    // Setup collision and interaction for regular maps
-                    this.setupMapCollisions(result.meshes);
-                }
-                
-                // Add invisible walls around the map perimeter to prevent escape
-                this.createMapBoundaries();
-                
-                console.log(`✅ Map loaded successfully: ${mapName}`);
-                this.updateLoadingProgress(85, 'Map loaded successfully');
-            } else {
-                throw new Error('No meshes found in map file');
-            }
-            
-        } catch (error) {
-            console.error('Map loading error:', error);
-            
-            // Create fallback environment
-            this.createFallbackEnvironment();
-        }
-    }
-    
-    async loadCollisionMeshes(collisionPath) {
-        try {
-            console.log(`🔒 Loading collision meshes from: ${collisionPath}`);
-            
-            // Try ImportMeshAsync with proper path handling
-            try {
-                // First try with direct path
-                const collisionResult = await BABYLON.SceneLoader.ImportMeshAsync(
-                    null,
-                    "",
-                    collisionPath,
-                    this.scene
-                );
-                
-                if (collisionResult.meshes.length > 0) {
-                    this.currentCollisionMeshes = collisionResult.meshes;
-                    this.setupCollisionMeshes(collisionResult.meshes);
-                    console.log(`✅ Collision meshes loaded: ${collisionResult.meshes.length} meshes`);
-                    return;
-                }
-            } catch (firstError) {
-                console.log(`⚠️ First attempt to load collision meshes failed: ${firstError.message}`);
-                console.log(`🔄 Trying alternative path format...`);
-                
-                // Try with rootUrl and sceneFilename separated
-                try {
-                    const lastSlash = collisionPath.lastIndexOf('/');
-                    const rootUrl = collisionPath.substring(0, lastSlash + 1);
-                    const fileName = collisionPath.substring(lastSlash + 1);
-                    
-                    console.log(`🔍 Trying with rootUrl: ${rootUrl}, fileName: ${fileName}`);
-                    
-                    const collisionResult = await BABYLON.SceneLoader.ImportMeshAsync(
-                        null,
-                        rootUrl,
-                        fileName,
-                        this.scene
-                    );
-                    
-                    if (collisionResult.meshes.length > 0) {
-                        this.currentCollisionMeshes = collisionResult.meshes;
-                        this.setupCollisionMeshes(collisionResult.meshes);
-                        console.log(`✅ Collision meshes loaded with alternative method: ${collisionResult.meshes.length} meshes`);
-                        return;
-                    }
-                } catch (secondError) {
-                    throw new Error(`Both loading methods failed: ${firstError.message} | ${secondError.message}`);
-                }
-            }
-        } catch (error) {
-            console.error('Collision loading error:', error);
-            console.log('⚠️ Continuing without separate collision meshes');
-        }
-    }
-    
-    setupCollisionMeshes(meshes) {
-        // Setup collision properties
-        meshes.forEach(mesh => {
-            if (mesh.name !== '__root__') {
-                // Make collision meshes invisible but solid
-                mesh.visibility = 0;
-                mesh.checkCollisions = true;
-                
-                // Check for special interaction meshes
-                if (mesh.name.toLowerCase().includes('stair') || 
-                    mesh.name.toLowerCase().includes('escalier') ||
-                    mesh.name.toLowerCase().includes('teleport')) {
-                    
-                    mesh.checkCollisions = false;
-                    this.setupStairTeleport(mesh);
-                } else {
-                    // Setup physics for collision
-                    if (!this.useManualCollisions) {
-                        try {
-                            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-                                mesh,
-                                BABYLON.PhysicsImpostor.MeshImpostor,
-                                { mass: 0, restitution: 0 },
-                                this.scene
-                            );
-                        } catch (error) {
-                            console.warn('Collision physics impostor creation failed for mesh:', mesh.name);
-                        }
-                    }
-                }
-            }
-        });
-    }
-    /**
-     * Load collision meshes incrementally
-     * @param {string} collisionPath - Path to collision file
-     */
-    async loadCollisionMeshesIncremental(collisionPath) {
-        try {
-            console.log(`🔒 Incrementally loading collision meshes from: ${collisionPath}`);
-            
-            const collisionResult = await new Promise((resolve, reject) => {
-                let loadedMeshes = [];
-                
-                BABYLON.SceneLoader.Append(
-                    "", 
-                    collisionPath, 
-                    this.scene,
-                    (scene) => {
-                        // Success callback
-                        console.log(`✅ Collision meshes appended successfully`);
-                        resolve({ meshes: loadedMeshes });
-                    },
-                    (progress) => {
-                        // Progress callback
-                        if (progress.lengthComputable) {
-                            const percentComplete = (progress.loaded / progress.total) * 100;
-                            this.updateLoadingProgress(80 + Math.floor(percentComplete * 0.1), `Loading collisions: ${Math.round(percentComplete)}%`);
-                        }
-                    },
-                    (scene, message, exception) => {
-                        // Error callback
-                        console.error(`❌ Error appending collision meshes:`, message, exception);
-                        reject(new Error(`Failed to append collision meshes: ${message}`));
-                    },
-                    ".glb"
-                );
-            });
-            
-            if (collisionResult.meshes.length > 0) {
-                this.currentCollisionMeshes = collisionResult.meshes;
-                
-                // Setup collision properties
-                collisionResult.meshes.forEach(mesh => {
-                    if (mesh.name !== '__root__') {
-                        // Make collision meshes invisible but solid
-                        mesh.visibility = 0;
-                        mesh.checkCollisions = true;
-                        
-                        // Check for special interaction meshes
-                        if (mesh.name.toLowerCase().includes('stair') || 
-                            mesh.name.toLowerCase().includes('escalier') ||
-                            mesh.name.toLowerCase().includes('teleport')) {
-                            
-                            mesh.checkCollisions = false;
-                            this.setupStairTeleport(mesh);
-                        } else {
-                            // Setup physics for collision
-                            if (!this.useManualCollisions) {
-                                try {
-                                    mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-                                        mesh,
-                                        BABYLON.PhysicsImpostor.MeshImpostor,
-                                        { mass: 0, restitution: 0 },
-                                        this.scene
-                                    );
-                                } catch (error) {
-                                    console.warn('Collision physics impostor creation failed for mesh:', mesh.name);
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log(`✅ Collision meshes loaded: ${collisionResult.meshes.length} meshes`);
-            }
-            
-        } catch (error) {
-            console.error('Collision loading error:', error);
-            console.log('⚠️ Continuing without separate collision meshes');
-        }
-    }
-    
-    setupMapCollisions(meshes) {
-        // Setup collision and interaction for maps without separate collision files
-        meshes.forEach(mesh => {
-            if (mesh.name !== '__root__') {
-                // Enable collisions for all meshes (walls, floors, etc.)
-                mesh.checkCollisions = true;
-                
-                // Special handling for stairs/teleporters
-                if (mesh.name.toLowerCase().includes('stair') || 
-                    mesh.name.toLowerCase().includes('escalier') ||
-                    mesh.name.toLowerCase().includes('teleport')) {
-                    
-                    // Make stairs interactable but not solid
-                    mesh.checkCollisions = false;
-                    this.setupStairTeleport(mesh);
-                } else {
-                    // Regular collision for walls, furniture, etc.
-                    if (!this.useManualCollisions) {
-                        try {
-                            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-                                mesh,
-                                BABYLON.PhysicsImpostor.MeshImpostor,
-                                { mass: 0, restitution: 0 },
-                                this.scene
-                            );
-                        } catch (error) {
-                            console.warn('Physics impostor creation failed for mesh:', mesh.name);
-                        }
-                    }
-                }
-            }
-        });
-    }
+        ORAS_CAMERA_SETTINGS: {
+            alpha: -Math.PI / 2,
+            beta: Math.PI / 4,
+            radius: 50, // Increased from 25 for a more distant view
+            lowerBetaLimit: Math.PI / 4,
+            upperBetaLimit: Math.PI / 4,
+            lowerRadiusLimit: 20, // Allow zooming in
+            upperRadiusLimit: 75, // Allow zooming out
+            lowerAlphaLimit: -Math.PI / 2,
+            upperAlphaLimit: -Math.PI / 2,
+            inertia: 0,
+            angularSensibilityX: 0,
+            angularSensibilityY: 0,
+            panningSensibility: 0,
+            wheelPrecision: 10, // Enable mouse wheel zoom
+            pinchPrecision: 0,
+        },
+    };
 
+<<<<<<< HEAD
     createFallbackEnvironment() {
         console.log('Creating fallback environment due to map loading failure');
         
@@ -3244,65 +2506,442 @@ class GameManager {
         
         // Ne réactiver que si plus aucune source ne bloque
         if (this.disabledBy.size === 0) {
+=======
+    class GameManager {
+        constructor() {
+            this.engine = null;
+            this.scene = null;
+            this.camera = null;
+            this.player = null;
+            this.playerController = null;
+            this.currentMap = null;
+            this.currentMapName = Config.DEFAULT_MAP;
+            this.socket = null;
+            this.user = null;
+            this.isInitialized = false;
+            this.otherPlayers = new Map();
+>>>>>>> fd63a9deaee7b81a36ca4e0b566595344472f5ca
             this.controlsDisabled = false;
-            console.log(`✅ Contrôles réactivés (libéré par: ${source})`);
-        } else {
-            console.log(`⏳ Contrôles toujours désactivés par: ${Array.from(this.disabledBy).join(', ')}`);
+            this.disabledBy = new Set();
+            this.loadingProgress = 0;
+
+            // TODO: These should be moved to their own manager classes in a future refactoring
+            this.teleportPromptShown = false;
+            this.fadePlane = null;
+            this.fadeMaterial = null;
+            this.isFading = false;
         }
-    }
-    
-    /**
-     * Vérifie si les contrôles sont actifs
-     */
-    areControlsEnabled() {
-        return !this.controlsDisabled;
-    }
-    
-    /**
-     * Refresh the game with improved ORAS settings
-     */
-    async refreshORASExperience() {
-        try {
-            console.log('🔄 Refreshing game with Pokemon ORAS improvements...');
+
+        async initialize(user, token) {
+            this.user = user;
             
-            // Show loading overlay
-            document.getElementById('loading-screen').classList.add('active');
-            document.getElementById('game-screen').classList.remove('active');
-            this.updateLoadingText('Applying Pokemon ORAS improvements...');
+            try {
+                this.updateLoadingProgress(10, 'Initializing 3D engine...');
+                await this.initializeBabylon();
+
+                this.updateLoadingProgress(30, 'Connecting to server...');
+                await this.initializeSocket(token);
+
+                this.updateLoadingProgress(50, 'Loading map...');
+                const startMap = this.user.character?.currentMap || Config.DEFAULT_MAP;
+                await this.loadMap(startMap);
+
+                this.updateLoadingProgress(70, 'Creating player...');
+                await this.createPlayer();
+
+                this.updateLoadingProgress(80, 'Setting up controls and UI...');
+                this.setupUI();
+
+                this.updateLoadingProgress(100, 'Starting game...');
+                this.startGame();
+            } catch (error) {
+                console.error('Game initialization error:', error);
+                this.showError('Failed to start the game. Please refresh and try again.');
+            }
+        }
+
+        async initializeBabylon() {
+            const canvas = document.getElementById('gameCanvas');
+            this.engine = new BABYLON.Engine(canvas, true, { antialias: true, adaptToDeviceRatio: true, preserveDrawingBuffer: true, stencil: true });
+            this.scene = new BABYLON.Scene(this.engine);
+            this.scene.clearColor = new BABYLON.Color4(0.5, 0.8, 1.0, 1.0);
+
+            this.setupPhysics();
+            this.setupCamera();
+            this.setupLighting();
+            this.setupEnvironment();
+
+            this.engine.runRenderLoop(() => {
+                if (this.scene) this.scene.render();
+            });
+
+            window.addEventListener('resize', () => {
+                if (this.engine) this.engine.resize();
+            });
+
+            console.log('🎮 Babylon.js engine initialized.');
+        }
+        
+        setupPhysics() {
+            try {
+                if (typeof CANNON !== 'undefined') {
+                    const cannonPlugin = new BABYLON.CannonJSPlugin(true, 10, CANNON);
+                    this.scene.enablePhysics(new BABYLON.Vector3(0, -9.81, 0), cannonPlugin);
+                    console.log('✅ Physics engine enabled with Cannon.js');
+                } else {
+                    console.warn('⚠️ CANNON.js not available, using basic collision detection.');
+                    this.useManualCollisions = true;
+                }
+            } catch (error) {
+                console.warn('⚠️ Physics initialization failed:', error.message);
+                this.useManualCollisions = true;
+            }
+        }
+
+        setupCamera() {
+            this.camera = new BABYLON.ArcRotateCamera("playerCamera", 0, 0, 0, BABYLON.Vector3.Zero(), this.scene);
+            Object.assign(this.camera, Config.ORAS_CAMERA_SETTINGS);
+            this.camera.setTarget(BABYLON.Vector3.Zero());
+            this.camera.detachControl();
+            console.log('📷 ORAS-style camera configured.');
+        }
+        
+        setupLighting() {
+            const hemisphericLight = new BABYLON.HemisphericLight("hemisphericLight", new BABYLON.Vector3(0, 1, 0), this.scene);
+            hemisphericLight.intensity = 0.8;
+
+            const directionalLight = new BABYLON.DirectionalLight("directionalLight", new BABYLON.Vector3(-1, -1, -1), this.scene);
+            directionalLight.intensity = 0.7;
+            directionalLight.position = new BABYLON.Vector3(10, 20, 10);
             
-            // Wait a moment for UI update
-            await new Promise(resolve => setTimeout(resolve, 500));
+            try {
+                this.shadowGenerator = new BABYLON.ShadowGenerator(1024, directionalLight);
+                this.shadowGenerator.useBlurExponentialShadowMap = true;
+                this.shadowGenerator.blurScale = 2;
+            } catch (e) {
+                console.warn('⚠️ Shadow generator creation failed:', e.message);
+            }
+        }
+        
+        setupEnvironment() {
+            try {
+                const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000.0 }, this.scene);
+                const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", this.scene);
+                skyboxMaterial.backFaceCulling = false;
+                skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("https://www.babylonjs-playground.com/textures/skybox", this.scene);
+                skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+                skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                skyboxMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+                skybox.material = skyboxMaterial;
+            } catch (e) {
+                console.warn('⚠️ Skybox setup failed:', e.message);
+            }
+        }
+
+        async initializeSocket(token) {
+            return new Promise((resolve, reject) => {
+                this.socket = io({
+                    auth: { token }
+                });
+                window.socket = this.socket; // For legacy access if needed
+
+                this.socket.on('connect', () => console.log('✅ Connected to server'));
+                this.socket.on('authenticated', () => {
+                    console.log('🔒 Authenticated successfully');
+                    this.setupSocketListeners();
+                    resolve();
+                });
+                this.socket.on('auth_error', (error) => reject(new Error(`Authentication failed: ${error}`)));
+                this.socket.on('connect_error', (error) => reject(new Error(`Connection failed: ${error}`)));
+            });
+        }
+        
+        setupSocketListeners() {
+            this.socket.on('player_moved', (data) => this.updateOtherPlayer(data));
+            this.socket.on('player_joined', (data) => this.addOtherPlayer(data));
+            this.socket.on('player_left', (data) => this.removeOtherPlayer(data.userId));
+            this.socket.on('other_players', (players) => players.forEach(p => this.addOtherPlayer(p)));
+            // TODO: Move battle events to a BattleManager
+            this.socket.on('battle_update', (data) => this.handleBattleUpdate(data));
+        }
+
+        async loadMap(mapName) {
+            const mapConfig = Config.MAP_CONFIGS[mapName] || Config.MAP_CONFIGS[Config.DEFAULT_MAP];
+            if (!mapConfig) {
+                throw new Error(`Map configuration not found for "${mapName}"`);
+            }
             
-            // Load Slateport City as the new default map
-            await this.loadMap('slateport_city');
-            this.updateLoadingText('Loading Calem player model...');
+            console.log(`🗺️ Loading map: ${mapName}`);
+            this.updateLoadingProgress(55, `Loading map: ${mapName}...`);
+
+            // Clear previous map
+            if (this.currentMap) this.currentMap.dispose();
+            if (this.currentCollisionMeshes) this.currentCollisionMeshes.forEach(m => m.dispose());
+
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(null, "", mapConfig.path, this.scene);
+            if (result.meshes.length === 0) throw new Error('No meshes found in map file');
+
+            this.currentMap = result.meshes[0];
+            this.currentMapName = mapName;
+
+            // Apply transformations and setup collisions
+            if (mapConfig.rotation) {
+                result.meshes.forEach(mesh => { if (mesh.name !== '__root__') mesh.rotation.y = mapConfig.rotation; });
+            }
             
-            // Recreate player with improved settings
-            await this.createPlayer();
-            this.updateLoadingText('Setting up Pokemon ORAS camera...');
+            if (mapConfig.collisionPath) {
+                await this.loadCollisionMeshes(mapConfig.collisionPath);
+            } else {
+                this.setupMapCollisions(result.meshes);
+            }
             
-            // Apply final camera improvements
-            this.camera.radius = 12;
-            this.camera.beta = Math.PI / 4;
-            this.camera.alpha = -Math.PI / 2;
-            this.camera.setTarget(this.player.position.add(new BABYLON.Vector3(0, 1.8, 0)));
+            this.createMapBoundaries();
+            console.log(`✅ Map loaded: ${mapName}`);
+        }
+
+        async loadCollisionMeshes(collisionPath) {
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync(null, "", collisionPath, this.scene);
+                this.currentCollisionMeshes = result.meshes;
+                this.setupMapCollisions(result.meshes, true);
+                console.log(`🔒 Collision meshes loaded: ${result.meshes.length}`);
+            } catch (error) {
+                console.error('Collision loading error:', error);
+            }
+        }
+
+        setupMapCollisions(meshes, isCollisionLayer = false) {
+            meshes.forEach(mesh => {
+                if (mesh.name === '__root__') return;
+                
+                mesh.checkCollisions = true;
+                if (isCollisionLayer) mesh.visibility = 0;
+
+                if (mesh.name.toLowerCase().includes('stair') || mesh.name.toLowerCase().includes('teleport')) {
+                    mesh.checkCollisions = false;
+                    this.setupStairTeleport(mesh);
+                } else if (!this.useManualCollisions) {
+                    try {
+                        mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.MeshImpostor, { mass: 0, restitution: 0 }, this.scene);
+                    } catch (e) {
+                        console.warn('Physics impostor creation failed for mesh:', mesh.name);
+                    }
+                }
+            });
+        }
+        
+        createMapBoundaries() {
+            // Simplified boundary creation
+            const size = 200;
+            const createWall = (name, position, scaling) => {
+                const wall = BABYLON.MeshBuilder.CreateBox(name, { size: 1 }, this.scene);
+                wall.scaling = scaling;
+                wall.position = position;
+                wall.checkCollisions = true;
+                wall.isVisible = false;
+            };
+            createWall("northBoundary", new BABYLON.Vector3(0, 0, size/2), new BABYLON.Vector3(size, 20, 1));
+            createWall("southBoundary", new BABYLON.Vector3(0, 0, -size/2), new BABYLON.Vector3(size, 20, 1));
+            createWall("eastBoundary", new BABYLON.Vector3(size/2, 0, 0), new BABYLON.Vector3(1, 20, size));
+            createWall("westBoundary", new BABYLON.Vector3(-size/2, 0, 0), new BABYLON.Vector3(1, 20, size));
+        }
+
+        async createPlayer() {
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", "/pokemon-map-editor/assets/player/", Config.PLAYER_MODEL_PATH, this.scene);
+                if (result.meshes.length === 0) throw new Error('Player model has no meshes.');
+
+                this.player = result.meshes[0];
+                this.player.isVisible = true; // Explicitly set visibility for the root mesh
+                this.player.scaling = Config.PLAYER_MODEL_SCALE;
+                this.player.position = new BABYLON.Vector3(0, 5, 0); // Default spawn at a safe, central position
+                this.player.getChildMeshes().forEach(m => m.visibility = 1.0);
+
+                this.player.physicsImpostor = new BABYLON.PhysicsImpostor(this.player, BABYLON.PhysicsImpostor.CapsuleImpostor, Config.PLAYER_CAPSULE_IMPOSTOR, this.scene);
+                this.player.checkCollisions = true;
+                this.player.ellipsoid = Config.PLAYER_COLLISION_ELLIPSOID;
+                this.player.ellipsoidOffset = Config.PLAYER_COLLISION_ELLIPSOID_OFFSET;
+
+                this.setupPlayerAnimations(result.animationGroups);
+                this.camera.lockedTarget = this.player;
+
+                const userRole = this.user?.role || 'user';
+                this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, userRole);
+                console.log(`✅ Player created for ${userRole}`);
+            } catch (error) {
+                console.error(`❌ Failed to load player model: ${error.message}`);
+                this.createFallbackPlayer();
+            }
+        }
+        
+        createFallbackPlayer() {
+            this.player = BABYLON.MeshBuilder.CreateCapsule("player", { radius: 0.4, height: 1.8 }, this.scene);
+            this.player.position = new BABYLON.Vector3(0, 1, 0);
+            this.player.checkCollisions = true;
+            this.playerController = new PlayerController(this.player, this.camera, this.scene, this.socket, 'user');
+            console.log(`⚠️ Created fallback player.`);
+        }
+
+        setupPlayerAnimations(animationGroups) {
+            // Simplified animation setup
+            this.playerAnimations = {
+                idle: animationGroups.find(ag => ag.name.toLowerCase().includes('idle')),
+                walk: animationGroups.find(ag => ag.name.toLowerCase().includes('walk')),
+                run: animationGroups.find(ag => ag.name.toLowerCase().includes('run')),
+            };
+
+            Object.values(this.playerAnimations).forEach(anim => {
+                if (anim) {
+                    anim.start(true, 1.0, anim.from, anim.to, false);
+                    anim.setWeightForAllAnimatables(0);
+                }
+            });
+
+            if (this.playerAnimations.idle) {
+                this.playerAnimations.idle.setWeightForAllAnimatables(1);
+                this.currentPlayerAnimation = 'idle';
+            }
+        }
+
+        setPlayerAnimation(type) {
+            if (!this.playerAnimations || this.currentPlayerAnimation === type) return;
+
+            const currentAnim = this.playerAnimations[this.currentPlayerAnimation];
+            const nextAnim = this.playerAnimations[type];
+
+            if (currentAnim) currentAnim.setWeightForAllAnimatables(0);
+            if (nextAnim) nextAnim.setWeightForAllAnimatables(1);
             
-            console.log('✅ Pokemon ORAS experience improved!');
-            console.log('📍 Now in Slateport City with Calem model');
-            console.log('🎥 Enhanced ORAS camera activated');
+            this.currentPlayerAnimation = type;
+        }
+        
+        setupUI() {
+            document.getElementById('playerRole').textContent = this.user.role;
+            document.getElementById('playerRole').className = `role-badge role-${this.user.role}`;
             
-            // Hide loading and show game
+            if (this.user.role === 'admin' || this.user.role === 'co-admin') {
+                const adminControls = document.getElementById('adminControls');
+                if (adminControls) {
+                    adminControls.style.display = 'block';
+                }
+                if (window.AdminMapSelector) {
+                    window.adminMapSelector = new AdminMapSelector(this, this.socket);
+                }
+            }
+            
+            document.getElementById('logoutBtn').addEventListener('click', () => window.authManager.logout());
+        }
+
+        async addOtherPlayer(playerData) {
+            if (this.otherPlayers.has(playerData.userId)) return;
+            
+            const modelFile = (playerData.role === 'admin' || playerData.role === 'co-admin') ? 'admin.glb' : 'player.glb';
+            let otherPlayer;
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", "/pokemon-map-editor/assets/player/", modelFile, this.scene);
+                otherPlayer = result.meshes[0];
+            } catch (e) {
+                otherPlayer = BABYLON.MeshBuilder.CreateCapsule(`player_${playerData.userId}`, { radius: 0.5, height: 1.8 }, this.scene);
+            }
+            
+            otherPlayer.position = new BABYLON.Vector3(playerData.position.x, playerData.position.y, playerData.position.z);
+            const nameTag = this.createNameTag(playerData.username, playerData.role);
+            nameTag.parent = otherPlayer;
+            nameTag.position.y = 2.5;
+            
+            this.otherPlayers.set(playerData.userId, { mesh: otherPlayer, nameTag: nameTag });
+        }
+
+        updateOtherPlayer(playerData) {
+            const player = this.otherPlayers.get(playerData.userId);
+            if (player) {
+                const targetPosition = new BABYLON.Vector3(playerData.position.x, playerData.position.y, playerData.position.z);
+                BABYLON.Animation.CreateAndStartAnimation("playerMove", player.mesh, "position", 30, 10, player.mesh.position, targetPosition);
+            }
+        }
+
+        removeOtherPlayer(userId) {
+            const player = this.otherPlayers.get(userId);
+            if (player) {
+                player.mesh.dispose();
+                player.nameTag.dispose();
+                this.otherPlayers.delete(userId);
+            }
+        }
+
+        createNameTag(username, role = 'user') {
+            const nameTag = BABYLON.MeshBuilder.CreatePlane("nameTag", {size: 2}, this.scene);
+            const nameTexture = new BABYLON.DynamicTexture("nameTexture", {width: 256, height: 64}, this.scene);
+            nameTexture.hasAlpha = true;
+            nameTexture.drawText(username, null, null, "bold 24px Arial", role === 'admin' ? '#FFD700' : '#FFFFFF', "transparent", true);
+            
+            const nameMaterial = new BABYLON.StandardMaterial("nameMaterial", this.scene);
+            nameMaterial.diffuseTexture = nameTexture;
+            nameMaterial.emissiveTexture = nameTexture;
+            nameTag.material = nameMaterial;
+            nameTag.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            
+            return nameTag;
+        }
+
+        startGame() {
             document.getElementById('loading-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
-            
-        } catch (error) {
-            console.error('❌ Error refreshing ORAS experience:', error);
-            this.showError('Failed to apply improvements. Please refresh the page.');
+            document.getElementById('currentMap').textContent = this.currentMapName;
+            document.getElementById('chat-panel').style.display = 'block';
+            console.log('🚀 Game started successfully!');
         }
-    }
-}
 
-// Initialize game manager
-document.addEventListener('DOMContentLoaded', () => {
-    window.gameManager = new GameManager();
-});
+        updateLoadingProgress(progress, message = null) {
+            this.loadingProgress = Math.max(0, Math.min(100, progress));
+            const progressBar = document.getElementById('loading-progress-bar');
+            if (progressBar) progressBar.style.width = `${this.loadingProgress}%`;
+            if (message) this.updateLoadingText(message);
+        }
+
+        updateLoadingText(text) {
+            const loadingElement = document.getElementById('loading-text');
+            if (loadingElement) loadingElement.textContent = text;
+        }
+
+        showError(message) {
+            const loadingElement = document.getElementById('loading-text');
+            if (loadingElement) {
+                loadingElement.textContent = `Error: ${message}`;
+                loadingElement.style.color = '#ff6b6b';
+            }
+        }
+
+        disableControls(source = 'unknown') {
+            this.disabledBy.add(source);
+            this.controlsDisabled = true;
+        }
+        
+        enableControls(source = 'unknown') {
+            this.disabledBy.delete(source);
+            if (this.disabledBy.size === 0) {
+                this.controlsDisabled = false;
+            }
+        }
+        
+        areControlsEnabled() {
+            return !this.controlsDisabled;
+        }
+        
+        // --- Battle related methods to be moved to a BattleManager ---
+        handleBattleUpdate(data) {
+            console.log('Battle update received:', data);
+            if (this.battleModule) {
+                this.battleModule.updateBattleState(data);
+            }
+        }
+
+        // ... other battle methods ...
+    }
+
+    // Initialize game manager
+    document.addEventListener('DOMContentLoaded', () => {
+        window.gameManager = new GameManager();
+    });
+
+})();

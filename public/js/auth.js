@@ -1,329 +1,283 @@
-class AuthManager {
-    constructor() {
-        this.token = localStorage.getItem('pokemon_mmo_token');
-        this.user = null;
-        this.initializeEventListeners();
-    }
+(function() {
+    'use strict';
 
-    initializeEventListeners() {
-        // Form switch handlers
-        document.getElementById('showRegister').addEventListener('click', (e) => {
-            e.preventDefault();
-            this.showRegisterForm();
-        });
+    /**
+     * Manages user authentication, including login, registration, and session management.
+     */
+    class AuthManager {
+        constructor() {
+            this.token = localStorage.getItem('pokemon_mmo_token');
+            this.user = null;
 
-        document.getElementById('showLogin').addEventListener('click', (e) => {
-            e.preventDefault();
-            this.showLoginForm();
-        });
+            // Cache DOM elements for performance and maintainability
+            this.dom = {
+                authScreen: document.getElementById('auth-screen'),
+                loadingScreen: document.getElementById('loading-screen'),
+                gameScreen: document.getElementById('game-screen'),
+                loginForm: document.getElementById('loginForm'),
+                registerForm: document.getElementById('registerForm'),
+                showRegister: document.getElementById('showRegister'),
+                showLogin: document.getElementById('showLogin'),
+                regPassword: document.getElementById('regPassword'),
+                regConfirmPassword: document.getElementById('regConfirmPassword'),
+                authMessage: document.getElementById('auth-message'),
+                loginSubmit: document.querySelector('#loginForm button[type="submit"]'),
+                registerSubmit: document.querySelector('#registerForm button[type="submit"]'),
+            };
 
-        // Form submission handlers
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleLogin(e);
-        });
-
-        document.getElementById('registerForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleRegister(e);
-        });
-
-        // Password validation on input
-        document.getElementById('regPassword').addEventListener('input', this.validatePasswordLive);
-        document.getElementById('regConfirmPassword').addEventListener('input', this.validatePasswordMatch);
-    }
-
-    showRegisterForm() {
-        document.getElementById('login-form').classList.remove('active');
-        document.getElementById('register-form').classList.add('active');
-        this.clearMessage();
-    }
-
-    showLoginForm() {
-        document.getElementById('register-form').classList.remove('active');
-        document.getElementById('login-form').classList.add('active');
-        this.clearMessage();
-    }
-
-    validatePasswordLive() {
-        const password = document.getElementById('regPassword').value;
-        const errors = [];
-
-        if (password.length > 0) {
-            if (password.length < 8) errors.push('8+ characters');
-            if (!/[A-Z]/.test(password)) errors.push('uppercase letter');
-            if (!/[a-z]/.test(password)) errors.push('lowercase letter');
-            if (!/[0-9]/.test(password)) errors.push('number');
-            if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push('special character');
-
-            const small = document.querySelector('#regPassword + small');
-            if (errors.length > 0) {
-                small.textContent = `Missing: ${errors.join(', ')}`;
-                small.style.color = '#ff6b6b';
-            } else {
-                small.textContent = 'Password strength: Strong ✓';
-                small.style.color = '#66bb6a';
-            }
-        }
-    }
-
-    validatePasswordMatch() {
-        const password = document.getElementById('regPassword').value;
-        const confirmPassword = document.getElementById('regConfirmPassword').value;
-        const small = document.querySelector('#regConfirmPassword + small');
-
-        if (confirmPassword.length > 0) {
-            if (password === confirmPassword) {
-                small.textContent = 'Passwords match ✓';
-                small.style.color = '#66bb6a';
-            } else {
-                small.textContent = 'Passwords do not match';
-                small.style.color = '#ff6b6b';
-            }
-        }
-    }
-
-    async handleLogin(event) {
-        const formData = new FormData(event.target);
-        const loginData = {
-            login: formData.get('login'),
-            password: formData.get('password')
-        };
-
-        if (!loginData.login || !loginData.password) {
-            this.showMessage('Please fill in all fields', 'error');
-            return;
+            this.initializeEventListeners();
         }
 
-        try {
-            this.showMessage('Connecting to Pokemon world...', 'info');
-            
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(loginData)
+        /**
+         * Sets up all necessary event listeners for the authentication forms.
+         */
+        initializeEventListeners() {
+            if (!this.dom.loginForm) return; // Exit if auth elements are not on the page
+
+            this.dom.showRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showRegisterForm();
             });
 
-            const result = await response.json();
-
-            if (response.ok) {
-                localStorage.setItem('pokemon_mmo_token', result.token);
-                this.token = result.token;
-                this.user = result.user;
-                this.showMessage('Welcome back, trainer!', 'success');
-                
-                setTimeout(() => {
-                    this.startGame();
-                }, 1000);
-            } else {
-                this.showMessage(result.message || 'Login failed', 'error');
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            this.showMessage('Connection failed. Please try again.', 'error');
-        }
-    }
-
-    async handleRegister(event) {
-        const formData = new FormData(event.target);
-        const registerData = {
-            username: formData.get('username'),
-            email: formData.get('email'),
-            password: formData.get('password'),
-            confirmPassword: formData.get('confirmPassword')
-        };
-
-        // Client-side validation
-        if (!this.validateRegisterData(registerData)) {
-            return;
-        }
-
-        try {
-            this.showMessage('Creating your trainer profile...', 'info');
-            
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(registerData)
+            this.dom.showLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showLoginForm();
             });
 
-            const result = await response.json();
+            this.dom.loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
 
-            if (response.ok) {
-                localStorage.setItem('pokemon_mmo_token', result.token);
-                this.token = result.token;
-                this.user = result.user;
-                this.showMessage('Welcome to the Pokemon world!', 'success');
-                
-                setTimeout(() => {
-                    this.startGame();
-                }, 1000);
-            } else {
-                this.showMessage(result.message || 'Registration failed', 'error');
-            }
-        } catch (error) {
-            console.error('Registration error:', error);
-            this.showMessage('Connection failed. Please try again.', 'error');
-        }
-    }
+            this.dom.registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleRegister();
+            });
 
-    validateRegisterData(data) {
-        // Username validation
-        if (!data.username || data.username.length < 3 || data.username.length > 50) {
-            this.showMessage('Username must be 3-50 characters', 'error');
-            return false;
+            this.dom.regPassword.addEventListener('input', () => this.validatePasswordLive());
+            this.dom.regConfirmPassword.addEventListener('input', () => this.validatePasswordMatch());
         }
 
-        if (!/^[a-zA-Z0-9_]+$/.test(data.username)) {
-            this.showMessage('Username can only contain letters, numbers, and underscores', 'error');
-            return false;
+        showRegisterForm() {
+            this.dom.loginForm.parentElement.classList.remove('active');
+            this.dom.registerForm.parentElement.classList.add('active');
+            this.clearMessage();
         }
 
-        // Email validation
-        if (!data.email || !this.isValidEmail(data.email)) {
-            this.showMessage('Please enter a valid email address', 'error');
-            return false;
+        showLoginForm() {
+            this.dom.registerForm.parentElement.classList.remove('active');
+            this.dom.loginForm.parentElement.classList.add('active');
+            this.clearMessage();
         }
 
-        // Password validation
-        const passwordErrors = this.validatePassword(data.password);
-        if (passwordErrors.length > 0) {
-            this.showMessage(passwordErrors.join('. '), 'error');
-            return false;
-        }
+        /**
+         * Provides live feedback on password strength during registration.
+         */
+        validatePasswordLive() {
+            const password = this.dom.regPassword.value;
+            const errors = this.validatePassword(password, true); // `true` for partial validation
+            const small = this.dom.regPassword.nextElementSibling;
 
-        // Password confirmation
-        if (data.password !== data.confirmPassword) {
-            this.showMessage('Passwords do not match', 'error');
-            return false;
-        }
-
-        return true;
-    }
-
-    validatePassword(password) {
-        const errors = [];
-        
-        if (password.length < 8) {
-            errors.push('Password must be at least 8 characters long');
-        }
-        
-        if (!/[A-Z]/.test(password)) {
-            errors.push('Password must contain at least one uppercase letter');
-        }
-        
-        if (!/[a-z]/.test(password)) {
-            errors.push('Password must contain at least one lowercase letter');
-        }
-        
-        if (!/[0-9]/.test(password)) {
-            errors.push('Password must contain at least one number');
-        }
-        
-        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-            errors.push('Password must contain at least one special character');
-        }
-        
-        return errors;
-    }
-
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
-    showMessage(message, type) {
-        const messageElement = document.getElementById('auth-message');
-        messageElement.textContent = message;
-        messageElement.className = `message ${type}`;
-        
-        if (type === 'success') {
-            messageElement.style.display = 'block';
-        }
-    }
-
-    clearMessage() {
-        const messageElement = document.getElementById('auth-message');
-        messageElement.textContent = '';
-        messageElement.className = 'message';
-    }
-
-    async verifyToken() {
-        if (!this.token) return false;
-
-        try {
-            const response = await fetch('/api/auth/verify', {
-                headers: {
-                    'Authorization': `Bearer ${this.token}`
+            if (password.length > 0) {
+                if (errors.length > 0) {
+                    small.textContent = `Missing: ${errors.join(', ')}`;
+                    small.style.color = '#ff6b6b';
+                } else {
+                    small.textContent = 'Password strength: Strong ✓';
+                    small.style.color = '#66bb6a';
                 }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                this.user = result.user;
-                return true;
             } else {
-                localStorage.removeItem('pokemon_mmo_token');
-                this.token = null;
-                return false;
+                small.textContent = '';
             }
-        } catch (error) {
-            console.error('Token verification error:', error);
-            return false;
         }
-    }
 
-    startGame() {
-        // Hide auth screen and show loading
-        document.getElementById('auth-screen').classList.remove('active');
-        document.getElementById('loading-screen').classList.add('active');
-        
-        // Initialize the game
-        if (window.gameManager) {
-            window.gameManager.initialize(this.user, this.token);
-        }
-    }
+        /**
+         * Checks if the two password fields match during registration.
+         */
+        validatePasswordMatch() {
+            const password = this.dom.regPassword.value;
+            const confirmPassword = this.dom.regConfirmPassword.value;
+            const small = this.dom.regConfirmPassword.nextElementSibling;
 
-    logout() {
-        localStorage.removeItem('pokemon_mmo_token');
-        this.token = null;
-        this.user = null;
-        
-        // Disconnect socket if connected
-        if (window.socket) {
-            window.socket.disconnect();
-        }
-        
-        // Show auth screen
-        document.getElementById('game-screen').classList.remove('active');
-        document.getElementById('editor-screen').classList.remove('active');
-        document.getElementById('loading-screen').classList.remove('active');
-        document.getElementById('auth-screen').classList.add('active');
-    }
-}
-
-// Initialize auth manager when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.authManager = new AuthManager();
-    
-    // Initialize chat manager globally
-    if (typeof ChatManager !== 'undefined') {
-        window.chatManager = new ChatManager();
-        console.log('💬 Chat manager initialized globally');
-    } else {
-        console.error('⚠️ ChatManager class not found');
-    }
-    
-    // Check if user is already logged in
-    if (window.authManager.token) {
-        window.authManager.verifyToken().then(isValid => {
-            if (isValid) {
-                window.authManager.startGame();
+            if (confirmPassword.length > 0) {
+                if (password === confirmPassword) {
+                    small.textContent = 'Passwords match ✓';
+                    small.style.color = '#66bb6a';
+                } else {
+                    small.textContent = 'Passwords do not match';
+                    small.style.color = '#ff6b6b';
+                }
+            } else {
+                small.textContent = '';
             }
-        });
+        }
+
+        async handleLogin() {
+            const formData = new FormData(this.dom.loginForm);
+            const loginData = Object.fromEntries(formData.entries());
+
+            if (!loginData.login || !loginData.password) {
+                return this.showMessage('Please fill in all fields', 'error');
+            }
+
+            this.setLoading(true);
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Login failed');
+
+                this.onAuthSuccess(result);
+            } catch (error) {
+                this.showMessage(error.message, 'error');
+            } finally {
+                this.setLoading(false);
+            }
+        }
+
+        async handleRegister() {
+            const formData = new FormData(this.dom.registerForm);
+            const registerData = Object.fromEntries(formData.entries());
+
+            if (!this.validateRegisterData(registerData)) return;
+
+            this.setLoading(true);
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registerData)
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Registration failed');
+                
+                this.onAuthSuccess(result);
+            } catch (error) {
+                this.showMessage(error.message, 'error');
+            } finally {
+                this.setLoading(false);
+            }
+        }
+
+        /**
+         * Handles successful authentication by storing session and starting the game.
+         * @param {object} result - The successful response from the server.
+         */
+        onAuthSuccess(result) {
+            localStorage.setItem('pokemon_mmo_token', result.token);
+            this.token = result.token;
+            this.user = result.user;
+            this.showMessage('Welcome!', 'success');
+            setTimeout(() => this.startGame(), 1000);
+        }
+
+        validateRegisterData(data) {
+            if (!data.username || data.username.length < 3) {
+                return this.showMessage('Username must be at least 3 characters', 'error'), false;
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(data.username)) {
+                return this.showMessage('Username can only contain letters, numbers, and underscores', 'error'), false;
+            }
+            if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+                return this.showMessage('Please enter a valid email', 'error'), false;
+            }
+            const passwordErrors = this.validatePassword(data.password);
+            if (passwordErrors.length > 0) {
+                return this.showMessage(passwordErrors.join('. '), 'error'), false;
+            }
+            if (data.password !== data.confirmPassword) {
+                return this.showMessage('Passwords do not match', 'error'), false;
+            }
+            return true;
+        }
+
+        validatePassword(password, partial = false) {
+            const errors = [];
+            if (!password) return ['Password is required'];
+            if (password.length < 8) errors.push(partial ? '8+ characters' : 'at least 8 characters');
+            if (!/[A-Z]/.test(password)) errors.push(partial ? 'uppercase' : 'an uppercase letter');
+            if (!/[a-z]/.test(password)) errors.push(partial ? 'lowercase' : 'a lowercase letter');
+            if (!/[0-9]/.test(password)) errors.push(partial ? 'number' : 'a number');
+            if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push(partial ? 'special' : 'a special character');
+            return errors;
+        }
+
+        showMessage(message, type) {
+            this.dom.authMessage.textContent = message;
+            this.dom.authMessage.className = `message ${type}`;
+        }
+
+        clearMessage() {
+            this.dom.authMessage.textContent = '';
+            this.dom.authMessage.className = 'message';
+        }
+
+        /**
+         * Verifies the stored token with the server to resume a session.
+         */
+        async verifyTokenAndStart() {
+            if (!this.token) return;
+
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    headers: { 'Authorization': `Bearer ${this.token}` }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    this.user = result.user;
+                    this.startGame();
+                } else {
+                    this.logout(); // Token is invalid, clear it
+                }
+            } catch (error) {
+                console.error('Token verification failed:', error);
+            }
+        }
+
+        startGame() {
+            this.dom.authScreen.classList.remove('active');
+            this.dom.loadingScreen.classList.add('active');
+
+            if (window.gameManager) {
+                window.gameManager.initialize(this.user, this.token);
+            }
+        }
+
+        logout() {
+            localStorage.removeItem('pokemon_mmo_token');
+            this.token = null;
+            this.user = null;
+            if (window.socket) window.socket.disconnect();
+
+            // Force reload to ensure a clean state
+            window.location.reload();
+        }
+
+        setLoading(isLoading) {
+            this.dom.loginSubmit.disabled = isLoading;
+            this.dom.registerSubmit.disabled = isLoading;
+            this.dom.loginSubmit.textContent = isLoading ? 'Connecting...' : 'Login';
+            this.dom.registerSubmit.textContent = isLoading ? 'Creating...' : 'Register';
+        }
     }
-});
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', () => {
+        const authManager = new AuthManager();
+        window.authManager = authManager; // Expose for other scripts if needed
+
+        // Initialize other global managers
+        if (typeof ChatManager !== 'undefined') {
+            window.chatManager = new ChatManager();
+        }
+
+        authManager.verifyTokenAndStart();
+    });
+
+})();

@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="professional-editor.css">
     <link rel="stylesheet" href="extended-editor.css">
+    <link rel="stylesheet" href="modern-editor.css">
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
@@ -49,6 +50,122 @@
             <button type="button" id="closeEditorBtn" class="window-control-btn" title="Close">X</button>
         </div>
     </header>
+    
+    <!-- Modern Map Editor -->
+    <div id="modern-editor-container">
+        <!-- Editor Header with Drag Handle -->
+        <div class="editor-header" data-drag-handle="true">
+            <div class="editor-header-content">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h2>Map Editor</h2>
+            </div>
+            <div class="editor-controls">
+                <button class="editor-control-btn" id="modern-fullscreen-btn" title="Fullscreen">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" />
+                    </svg>
+                </button>
+                <button class="editor-control-btn close-btn" id="modern-close-btn" title="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Toolbar -->
+        <div class="editor-toolbar">
+            <button class="toolbar-button default">Charger Carte (.glb)</button>
+            <button class="toolbar-button default">Charger Collisions (.glb)</button>
+            <button class="toolbar-button default">Exporter Données (.json)</button>
+            <button class="toolbar-button default">Importer Données (.json)</button>
+            <button class="toolbar-button default">Mode Test</button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-button active">Grille ON</button>
+            <button class="toolbar-button active">Collisions ON</button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-button active">Sélectionner</button>
+            <button class="toolbar-button default">Sélection Multiple</button>
+            <button class="toolbar-button default">Zone Pokémon</button>
+            <button class="toolbar-button default">Placer PNJ</button>
+            <button class="toolbar-button default">Point de Téléportation</button>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="editor-content">
+            <!-- Left Panel -->
+            <div class="editor-panel left">
+                <div class="panel-section">
+                    <h3>Object Properties</h3>
+                    <p>Select an object to view its properties.</p>
+                </div>
+                <div class="panel-section">
+                    <h3>Map Objects Library</h3>
+                    <div class="object-categories">
+                        <div class="object-category">
+                            <h4>🏠 Buildings</h4>
+                            <div class="object-grid">
+                                <div class="object-item" data-object="house.glb">
+                                    <div class="object-thumbnail">🏠</div>
+                                    <div class="object-name">House</div>
+                                </div>
+                                <div class="object-item" data-object="pokecenter.glb">
+                                    <div class="object-thumbnail">🏥</div>
+                                    <div class="object-name">Pokemon Center</div>
+                                </div>
+                                <div class="object-item" data-object="mart.glb">
+                                    <div class="object-thumbnail">🏪</div>
+                                    <div class="object-name">Poke Mart</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="object-category">
+                            <h4>🌳 Nature</h4>
+                            <div class="object-grid">
+                                <div class="object-item" data-object="tree.glb">
+                                    <div class="object-thumbnail">🌳</div>
+                                    <div class="object-name">Tree</div>
+                                </div>
+                                <div class="object-item" data-object="rock.glb">
+                                    <div class="object-thumbnail">🗿</div>
+                                    <div class="object-name">Rock</div>
+                                </div>
+                                <div class="object-item" data-object="flower.glb">
+                                    <div class="object-thumbnail">🌸</div>
+                                    <div class="object-name">Flower</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Divider 1 -->
+            <div class="editor-divider" id="divider-1"></div>
+            
+            <!-- Center Panel -->
+            <div class="editor-panel center">
+                <div class="grid-background">
+                    <div class="center-indicator"></div>
+                </div>
+            </div>
+            
+            <!-- Divider 2 -->
+            <div class="editor-divider" id="divider-2"></div>
+            
+            <!-- Right Panel -->
+            <div class="editor-panel right">
+                <div class="panel-section">
+                    <h3>Inspecteur de Scène</h3>
+                    <input type="text" class="search-input" placeholder="Rechercher...">
+                </div>
+            </div>
+        </div>
+    </div>
 
     <main id="editor-container">
         <aside id="left-panel" class="panel">
@@ -322,7 +439,9 @@
     <script src="PokemonToolsExtended.js" defer></script>
     <script src="AdvancedEditorIntegration.js" defer></script>
     <script src="APIService.js" defer></script>
+    <script src="../public/js/draggable.js"></script>
     <script src="UIComponentSystem.js" defer></script>
     <script src="editor.js" defer></script>
+    <script src="modern-editor.js" defer></script>
 </body>
 </html>

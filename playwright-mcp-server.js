@@ -10,21 +10,53 @@ app.use(express.json());
 let browser = null;
 let page = null;
 
+// Page registry to track open pages by URL
+const pageRegistry = new Map();
+
 // Initialize browser
-async function initBrowser() {
+async function initBrowser(targetUrl = null) {
   if (!browser) {
     browser = await chromium.launch({ headless: false });
     const context = await browser.newContext();
     page = await context.newPage();
+    
+    // Register the page with its URL if provided
+    if (targetUrl) {
+      pageRegistry.set(targetUrl, page);
+    }
+    
     console.log('Browser initialized');
+  } else if (targetUrl && pageRegistry.has(targetUrl)) {
+    // Reuse existing page for this URL
+    page = pageRegistry.get(targetUrl);
+    try {
+      // Bring existing page to front
+      await page.bringToFront();
+      console.log(`Reusing existing page for ${targetUrl}`);
+      return;
+    } catch (error) {
+      // If the page is closed, remove it from registry and create a new one
+      console.log(`Existing page for ${targetUrl} was closed, creating new page`);
+      pageRegistry.delete(targetUrl);
+    }
+  } else {
+    // Create new page for this URL
+    const context = browser.contexts()[0];
+    if (context) {
+      page = await context.newPage();
+      
+      if (targetUrl) {
+        pageRegistry.set(targetUrl, page);
+      }
+    }
   }
 }
 
 // MCP tool implementations
 app.post('/navigate', async (req, res) => {
   try {
-    await initBrowser();
     const { url } = req.body;
+    await initBrowser(url); // Pass URL to initBrowser
     await page.goto(url);
     res.json({ success: true, message: `Navigated to ${url}` });
   } catch (error) {

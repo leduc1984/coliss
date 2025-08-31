@@ -2,15 +2,37 @@ class ChatManager {
     constructor() {
         this.socket = null;
         this.isInitialized = false;
-        this.isMinimized = false; // Start expanded by default to match XML design
+        this.isMinimized = false;
         this.isChatFocused = false;
         this.messageHistory = [];
         this.maxMessages = 100;
         this.activeChannel = 'global';
-        this.customTabs = []; // Store custom tabs added by user
+        this.customTabs = [];
+        this.draggable = null;
+        this.isModernUI = true; // Flag to use modern UI
+        this.currentUI = 'new'; // 'xml', 'modern', or 'new'
+        this.tabs = [
+            { 
+                id: 1, 
+                name: 'Global', 
+                channel: 'global',
+                messages: [],
+                isClosable: false
+            },
+            { 
+                id: 2, 
+                name: 'English', 
+                channel: 'english',
+                messages: [],
+                isClosable: false
+            },
+        ];
+        this.activeTabId = 1;
         
         // DOM elements storage
         this.chatElements = {};
+        this.modernElements = {};
+        this.newElements = {};
         
         // Wait for DOM to be ready before initializing
         if (document.readyState === 'loading') {
@@ -32,6 +54,9 @@ class ChatManager {
         this.validateAndSetupDOMElements();
         
         if (this.allElementsValid()) {
+            // Initialize modern UI components
+            this.initializeNewUI();
+            
             this.initializeEventListeners();
             this.initializeTabs();
             this.initializeMinimizeButton();
@@ -40,8 +65,8 @@ class ChatManager {
             console.log('✅ ChatManager DOM initialization complete');
             
             // Ensure chat panel is visible
-            if (this.chatElements.chatPanel) {
-                this.chatElements.chatPanel.style.display = 'block';
+            if (this.newElements.chatContainer) {
+                this.newElements.chatContainer.style.display = 'block';
                 console.log('💬 Chat panel initialized and visible');
             }
         } else {
@@ -51,51 +76,52 @@ class ChatManager {
     }
     
     validateAndSetupDOMElements() {
-        const requiredElements = {
-            chatMessages: 'chat-messages',
-            chatInput: 'chatInput', 
-            sendButton: 'sendChat',
-            toggleButton: 'toggleChat',
-            chatPanel: 'chat-panel',
-            chatContent: 'chat-content',
-            chatIcon: 'chat-icon',
-            chatHeader: 'chat-header'
-        };
+        // New UI elements
+        this.newElements.chatContainer = document.getElementById('new-chat-container');
+        this.newElements.chatHeader = this.newElements.chatContainer?.querySelector('[data-drag-handle="true"]');
+        this.newElements.chatTabsContainer = this.newElements.chatContainer?.querySelector('.flex-shrink-0.flex');
+        this.newElements.chatMessages = this.newElements.chatContainer?.querySelector('.flex-grow');
+        this.newElements.chatInput = document.getElementById('new-chatInput');
+        this.newElements.sendButton = document.getElementById('new-sendChat');
+        this.newElements.toggleButton = document.getElementById('new-toggleChat');
+        this.newElements.addTabButton = document.getElementById('new-add-tab-button');
+        this.newElements.addTabModal = document.getElementById('new-add-tab-modal');
+        this.newElements.newTabNameInput = document.getElementById('new-new-tab-name');
+        this.newElements.cancelAddTabButton = document.getElementById('new-cancel-add-tab');
+        this.newElements.confirmAddTabButton = document.getElementById('new-confirm-add-tab');
+        this.newElements.messagesEnd = document.getElementById('new-chat-messages-end');
         
-        let missingElements = [];
-        
-        for (const [key, elementId] of Object.entries(requiredElements)) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                this.chatElements[key] = element;
-                console.log(`✅ Found ${key}: #${elementId}`);
-            } else {
-                if (elementId !== 'chat-icon') { // Icon is optional
-                    console.error(`❌ Missing required element: #${elementId}`);
-                    missingElements.push(elementId);
+        // Make chat container draggable
+        if (this.newElements.chatContainer && this.newElements.chatHeader) {
+            makeDraggable(this.newElements.chatContainer, {
+                initialPosition: { 
+                    x: window.innerWidth - 420 - 20, 
+                    y: window.innerHeight - 400 - 20 
                 }
-            }
+            });
         }
         
-        // Additional elements with class selectors
-        this.chatElements.chatTabs = document.querySelectorAll('.chat-tab-button');
-        this.chatElements.addTabButton = document.getElementById('add-tab-button');
-        this.chatElements.removeTabButton = document.getElementById('remove-tab-button');
-        this.chatElements.settingsButton = document.getElementById('settings-button');
-        
-        console.log(`Found ${this.chatElements.chatTabs.length} chat tabs`);
-        
-        if (missingElements.length > 0) {
-            console.error('🔥 Critical chat elements missing:', missingElements);
-            return false;
-        }
+        console.log(`Found new chat elements:`, this.newElements);
         
         return true;
     }
     
     allElementsValid() {
-        const required = ['chatMessages', 'chatInput', 'sendButton', 'toggleButton', 'chatPanel'];
-        return required.every(key => this.chatElements[key] instanceof HTMLElement);
+        const required = ['chatContainer', 'chatInput', 'sendButton', 'toggleButton'];
+        return required.every(key => this.newElements[key] instanceof HTMLElement);
+    }
+    
+    initializeNewUI() {
+        // Set initial position for chat container
+        if (this.newElements.chatContainer) {
+            const initialX = window.innerWidth - 420 - 20;
+            const initialY = window.innerHeight - 400 - 20;
+            this.newElements.chatContainer.style.left = `${initialX}px`;
+            this.newElements.chatContainer.style.top = `${initialY}px`;
+        }
+        
+        // Add initial messages
+        this.addSystemMessage('Welcome to Pokemon MMO! Type /help for commands.', 'info');
     }
     
     showChatError(message) {
@@ -154,8 +180,8 @@ class ChatManager {
             this.addSystemMessage('Welcome to Pokemon MMO! Type /help for commands.', 'info');
             
             // Make sure chat panel is visible and properly configured
-            if (this.chatElements.chatPanel) {
-                this.chatElements.chatPanel.style.display = 'block';
+            if (this.newElements.chatContainer) {
+                this.newElements.chatContainer.style.display = 'block';
                 console.log('💬 Chat panel made visible');
             }
             
@@ -173,593 +199,425 @@ class ChatManager {
 
     initializeEventListeners() {
         // Send message on button click
-        if (this.chatElements.sendButton) {
-            this.chatElements.sendButton.addEventListener('click', () => {
+        if (this.newElements.sendButton) {
+            this.newElements.sendButton.addEventListener('click', () => {
                 this.sendMessage();
             });
         }
-
+        
+        // Send message on Enter key
+        if (this.newElements.chatInput) {
+            this.newElements.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            });
+        }
+        
+        // Toggle chat minimize
+        if (this.newElements.toggleButton) {
+            this.newElements.toggleButton.addEventListener('click', () => {
+                this.toggleMinimize();
+            });
+        }
+        
+        // Add tab button
+        if (this.newElements.addTabButton) {
+            this.newElements.addTabButton.addEventListener('click', () => {
+                this.showAddTabModal();
+            });
+        }
+        
+        // Cancel add tab
+        if (this.newElements.cancelAddTabButton) {
+            this.newElements.cancelAddTabButton.addEventListener('click', () => {
+                this.hideAddTabModal();
+            });
+        }
+        
+        // Confirm add tab
+        if (this.newElements.confirmAddTabButton) {
+            this.newElements.confirmAddTabButton.addEventListener('click', () => {
+                this.confirmAddTab();
+            });
+        }
+        
+        // New tab name input Enter key
+        if (this.newElements.newTabNameInput) {
+            this.newElements.newTabNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.confirmAddTab();
+                }
+            });
+        }
+        
+        // Tab switching
+        if (this.newElements.chatTabsContainer) {
+            this.newElements.chatTabsContainer.addEventListener('click', (e) => {
+                const tabButton = e.target.closest('[data-tab-id]');
+                if (tabButton) {
+                    const tabId = parseInt(tabButton.getAttribute('data-tab-id'));
+                    this.setActiveTab(tabId);
+                }
+            });
+        }
+    }
+    
+    sendMessage() {
+        if (!this.socket) {
+            console.error('❌ No socket connection');
+            return;
+        }
+        
+        const input = this.newElements.chatInput;
+        if (!input) return;
+        
+        const message = input.value.trim();
+        if (!message) return;
+        
+        // Send message through socket
+        this.socket.emit('chatMessage', {
+            message: message,
+            channel: this.getActiveTab().channel
+        });
+        
+        // Clear input
+        input.value = '';
+    }
+    
+    getActiveTab() {
+        return this.tabs.find(tab => tab.id === this.activeTabId);
+    }
+    
+    setActiveTab(tabId) {
+        this.activeTabId = tabId;
+        this.refreshTabs();
+        this.refreshMessages();
+    }
+    
+    refreshTabs() {
+        if (!this.newElements.chatTabsContainer) return;
+        
+        // Clear existing tabs
+        this.newElements.chatTabsContainer.innerHTML = '';
+        
+        // Add tabs
+        this.tabs.forEach(tab => {
+            const tabButton = document.createElement('button');
+            tabButton.className = `relative flex-shrink-0 flex items-center gap-2 text-sm px-3 py-2 border-b-2 transition-colors ${
+                this.activeTabId === tab.id
+                    ? 'border-cyan-400 text-white'
+                    : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+            }`;
+            tabButton.setAttribute('data-tab-id', tab.id);
+            tabButton.innerHTML = `
+                <span>${tab.name === 'Global' ? '🌍' : tab.name === 'English' ? '🇬🇧' : '#'} ${tab.name}</span>
+                ${tab.isClosable ? `
+                    <span class="p-0.5 rounded-full hover:bg-red-500/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </span>
+                ` : ''}
+            `;
+            this.newElements.chatTabsContainer.appendChild(tabButton);
+        });
+        
+        // Add the + button
+        const addButton = document.createElement('button');
+        addButton.id = 'new-add-tab-button';
+        addButton.className = 'ml-2 p-1.5 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors';
+        addButton.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+        `;
+        this.newElements.chatTabsContainer.appendChild(addButton);
+    }
+    
+    refreshMessages() {
+        if (!this.newElements.chatMessages || !this.newElements.messagesEnd) return;
+        
+        const activeTab = this.getActiveTab();
+        if (!activeTab) return;
+        
+        // Clear messages container
+        const messagesContainer = this.newElements.chatMessages.querySelector('.flex-col');
+        if (messagesContainer) {
+            messagesContainer.innerHTML = '';
+        } else {
+            // Create messages container if it doesn't exist
+            const container = document.createElement('div');
+            container.className = 'flex flex-col gap-3 text-sm';
+            this.newElements.chatMessages.innerHTML = '';
+            this.newElements.chatMessages.appendChild(container);
+        }
+        
+        // Add messages
+        activeTab.messages.forEach(msg => {
+            this.addMessageToDOM(msg);
+        });
+        
+        // Scroll to bottom
+        this.scrollToBottom();
+    }
+    
+    addMessageToDOM(message) {
+        if (!this.newElements.chatMessages || !this.newElements.messagesEnd) return;
+        
+        const messagesContainer = this.newElements.chatMessages.querySelector('.flex-col');
+        if (!messagesContainer) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.innerHTML = `
+            <span class="${message.color || 'text-white'} font-bold">${message.user}</span>
+            <span class="text-white/90">: ${message.text}</span>
+        `;
+        messagesContainer.appendChild(messageDiv);
+        
+        this.scrollToBottom();
+    }
+    
+    scrollToBottom() {
+        if (this.newElements.messagesEnd) {
+            this.newElements.messagesEnd.scrollIntoView({ behavior: "smooth" });
+        }
+    }
+    
+    showAddTabModal() {
+        if (this.newElements.addTabModal) {
+            this.newElements.addTabModal.style.display = 'block';
+            if (this.newElements.newTabNameInput) {
+                this.newElements.newTabNameInput.focus();
+            }
+        }
+    }
+    
+    hideAddTabModal() {
+        if (this.newElements.addTabModal) {
+            this.newElements.addTabModal.style.display = 'none';
+            if (this.newElements.newTabNameInput) {
+                this.newElements.newTabNameInput.value = '';
+            }
+        }
+    }
+    
+    confirmAddTab() {
+        if (!this.newElements.newTabNameInput) return;
+        
+        const tabName = this.newElements.newTabNameInput.value.trim();
+        if (!tabName) return;
+        
+        // Create new tab
+        const newTabId = Date.now();
+        const newTab = {
+            id: newTabId,
+            name: tabName,
+            channel: tabName.toLowerCase(),
+            messages: [],
+            isClosable: true
+        };
+        
+        this.tabs.push(newTab);
+        this.setActiveTab(newTabId);
+        this.hideAddTabModal();
+    }
+    
+    toggleMinimize() {
+        this.isMinimized = !this.isMinimized;
+        
+        if (!this.newElements.chatContainer) return;
+        
+        // Update height based on minimized state
+        this.newElements.chatContainer.style.height = this.isMinimized ? '48px' : '400px';
+        
+        // Hide/show content elements
+        const contentElements = this.newElements.chatContainer.querySelectorAll('.flex-shrink-0:not(:first-child), .flex-grow, .border-t');
+        contentElements.forEach(el => {
+            el.style.display = this.isMinimized ? 'none' : 'block';
+        });
+    }
+    
+    initializeModernUI() {
+        if (!this.isModernUI) return;
+        
+        const chatPanel = this.modernElements.chatPanel;
+        if (!chatPanel) return;
+        
+        // Make chat draggable
+        const chatHeader = this.modernElements.chatHeader;
+        if (chatHeader) {
+            chatHeader.setAttribute('data-drag-handle', 'true');
+            
+            // Initialize draggable
+            if (typeof Draggable !== 'undefined') {
+                // Set initial position to bottom right
+                const x = window.innerWidth - chatPanel.offsetWidth - 20;
+                const y = window.innerHeight - chatPanel.offsetHeight - 20;
+                chatPanel.style.left = x + 'px';
+                chatPanel.style.top = y + 'px';
+                
+                this.draggable = new Draggable(chatPanel, {
+                    handle: chatHeader
+                });
+            }
+        }
+        
+        // Initialize modern event listeners
+        this.initializeModernEventListeners();
+        
+        console.log('✅ Modern UI initialized');
+    }
+    
+    initializeModernEventListeners() {
+        // Send message on button click
+        if (this.modernElements.sendButton) {
+            this.modernElements.sendButton.addEventListener('click', () => {
+                this.sendMessage();
+            });
+        }
+        
         // Chat input focus/blur events
-        if (this.chatElements.chatInput) {
-            this.chatElements.chatInput.addEventListener('focus', () => {
+        if (this.modernElements.chatInput) {
+            this.modernElements.chatInput.addEventListener('focus', () => {
                 this.isChatFocused = true;
                 this.disableGameControls();
                 console.log('💬 Chat focused - game controls disabled');
             });
             
-            this.chatElements.chatInput.addEventListener('blur', () => {
+            this.modernElements.chatInput.addEventListener('blur', () => {
                 this.isChatFocused = false;
                 this.enableGameControls();
                 console.log('💬 Chat unfocused - game controls enabled');
             });
             
             // Send message on Enter key
-            this.chatElements.chatInput.addEventListener('keypress', (e) => {
+            this.modernElements.chatInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     this.sendMessage();
                 }
             });
-            
-            // Prevent game controls when typing
-            this.chatElements.chatInput.addEventListener('keydown', (e) => {
-                e.stopPropagation(); // Empêche la propagation vers les contrôles du jeu
-            });
-            
-            // Auto-resize textarea
-            this.chatElements.chatInput.addEventListener('input', () => {
-                this.chatElements.chatInput.style.height = '36px';
-                this.chatElements.chatInput.style.height = Math.min(this.chatElements.chatInput.scrollHeight, 100) + 'px';
-            });
         }
-
+        
         // Toggle chat visibility with toggle button
-        if (this.chatElements.toggleButton) {
-            this.chatElements.toggleButton.addEventListener('click', (e) => {
+        if (this.modernElements.toggleButton) {
+            this.modernElements.toggleButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.toggleChat();
             });
         }
         
-        console.log('✅ Chat event listeners initialized');
-    }
-
-    /**
-     * Initialize additional buttons (add, remove, settings)
-     */
-    initializeAdditionalButtons() {
         // Add tab button
-        if (this.chatElements.addTabButton) {
-            this.chatElements.addTabButton.addEventListener('click', (e) => {
+        if (this.modernElements.addTabButton) {
+            this.modernElements.addTabButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.addTab();
+                this.showAddTabModal();
             });
         }
         
-        // Remove tab button
-        if (this.chatElements.removeTabButton) {
-            this.chatElements.removeTabButton.addEventListener('click', (e) => {
+        // Cancel add tab button
+        if (this.modernElements.cancelAddTabButton) {
+            this.modernElements.cancelAddTabButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.removeTab();
+                this.hideAddTabModal();
             });
         }
         
-        // Settings button
-        if (this.chatElements.settingsButton) {
-            this.chatElements.settingsButton.addEventListener('click', (e) => {
+        // Confirm add tab button
+        if (this.modernElements.confirmAddTabButton) {
+            this.modernElements.confirmAddTabButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.openSettings();
+                this.confirmAddTab();
             });
         }
         
-        console.log('✅ Additional chat buttons initialized');
-    }
-
-    /**
-     * Désactive les contrôles du jeu quand on tape dans le chat
-     */
-    disableGameControls() {
-        // Notifier le GameManager de désactiver les contrôles
-        if (window.gameManager) {
-            window.gameManager.disableControls('chat');
+        // New tab name input
+        if (this.modernElements.newTabNameInput) {
+            this.modernElements.newTabNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.confirmAddTab();
+                }
+            });
         }
         
-        // Marquer globalement que le chat est actif
-        document.body.classList.add('chat-active');
+        console.log('✅ Modern chat event listeners initialized');
     }
     
-    /**
-     * Réactive les contrôles du jeu quand on quitte le chat
-     */
-    enableGameControls() {
-        // Notifier le GameManager de réactiver les contrôles
-        if (window.gameManager) {
-            window.gameManager.enableControls('chat');
+    showAddTabModal() {
+        if (this.modernElements.addTabModal) {
+            this.modernElements.addTabModal.style.display = 'flex';
+            if (this.modernElements.newTabNameInput) {
+                this.modernElements.newTabNameInput.focus();
+            }
         }
+    }
+    
+    hideAddTabModal() {
+        if (this.modernElements.addTabModal) {
+            this.modernElements.addTabModal.style.display = 'none';
+            if (this.modernElements.newTabNameInput) {
+                this.modernElements.newTabNameInput.value = '';
+            }
+        }
+    }
+    
+    confirmAddTab() {
+        if (this.modernElements.newTabNameInput) {
+            const tabName = this.modernElements.newTabNameInput.value.trim();
+            if (tabName) {
+                // Add new tab logic here
+                this.addNewTab(tabName);
+                this.hideAddTabModal();
+            }
+        }
+    }
+    
+    addNewTab(tabName) {
+        if (!this.modernElements.chatTabsContainer) return;
         
-        // Enlever le marqueur global
-        document.body.classList.remove('chat-active');
-    }
-
-    initializeMinimizeButton() {
-        if (this.chatElements.toggleButton) {
-            this.chatElements.toggleButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.toggleChat();
-            });
-            console.log('✅ Chat minimize button initialized');
-        } else {
-            console.warn('⚠️ Chat minimize button not found');
-        }
-    }
-
-    /**
-     * Bascule entre mode étendu et mode réduit
-     */
-    toggleChat() {
-        if (!this.chatElements.chatPanel) {
-            console.error('❌ Cannot toggle chat: panel missing');
-            return;
-        }
+        // Create new tab button
+        const tabButton = document.createElement('button');
+        tabButton.className = 'chat-tab-button';
+        tabButton.dataset.channel = tabName.toLowerCase();
         
-        this.isMinimized = !this.isMinimized;
+        // Add close button
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'close-tab';
+        closeBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        `;
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeTab(tabName.toLowerCase());
+        });
         
-        if (this.isMinimized) {
-            // Minimize chat
-            this.chatElements.chatPanel.style.width = '50px';
-            this.chatElements.chatPanel.style.height = '50px';
-            this.chatElements.chatPanel.style.borderRadius = '50%';
-            this.chatElements.chatPanel.style.cursor = 'pointer';
-            
-            // Show icon, hide content
-            if (this.chatElements.chatIcon) this.chatElements.chatIcon.style.display = 'flex';
-            if (this.chatElements.chatHeader) this.chatElements.chatHeader.style.display = 'none';
-            if (this.chatElements.chatContent) this.chatElements.chatContent.style.display = 'none';
-            
-            // Update toggle button text
-            if (this.chatElements.toggleButton) this.chatElements.toggleButton.textContent = '+';
-            
-            console.log('💬 Chat minimized to icon');
-        } else {
-            // Expand chat
-            this.chatElements.chatPanel.style.width = '350px';
-            this.chatElements.chatPanel.style.height = 'auto';
-            this.chatElements.chatPanel.style.maxHeight = '400px';
-            this.chatElements.chatPanel.style.borderRadius = '8px';
-            this.chatElements.chatPanel.style.cursor = 'default';
-            
-            // Hide icon, show content
-            if (this.chatElements.chatIcon) this.chatElements.chatIcon.style.display = 'none';
-            if (this.chatElements.chatHeader) this.chatElements.chatHeader.style.display = 'flex';
-            if (this.chatElements.chatContent) this.chatElements.chatContent.style.display = 'block';
-            
-            // Update toggle button text
-            if (this.chatElements.toggleButton) this.chatElements.toggleButton.textContent = '−';
-            
-            console.log('💬 Chat expanded');
-        }
+        tabButton.innerHTML = `<span>${tabName}</span>`;
+        tabButton.appendChild(closeBtn);
+        
+        // Insert before the add button
+        const addButton = this.modernElements.addTabButton;
+        this.modernElements.chatTabsContainer.insertBefore(tabButton, addButton);
+        
+        // Add click event
+        tabButton.addEventListener('click', () => {
+            this.switchToChannel(tabName.toLowerCase());
+        });
+        
+        // Switch to the new tab
+        this.switchToChannel(tabName.toLowerCase());
     }
-
-    initializeTabs() {
-        // Add click event listeners to tabs with proper styling
-        if (this.chatElements.chatTabs) {
-            this.chatElements.chatTabs.forEach(tab => {
-                // Skip add/remove/settings buttons
-                if (tab.id === 'add-tab-button' || tab.id === 'remove-tab-button' || tab.id === 'settings-button') {
-                    return;
-                }
-                
-                tab.addEventListener('click', () => {
-                    const channel = tab.dataset.channel;
-                    this.switchToChannel(channel);
-                });
-                
-                // Add hover effects
-                tab.addEventListener('mouseenter', () => {
-                    if (!tab.classList.contains('togglebutton-normal--active')) {
-                        tab.style.color = '#fff';
-                        tab.style.background = 'rgba(255,255,255,0.1)';
-                    }
-                });
-                
-                tab.addEventListener('mouseleave', () => {
-                    if (!tab.classList.contains('togglebutton-normal--active')) {
-                        tab.style.color = '#888';
-                        tab.style.background = 'transparent';
-                    }
-                });
-            });
-        }
+    
+    removeTab(channel) {
+        // Remove tab logic
+        console.log('Removing tab:', channel);
     }
-
+    
     switchToChannel(channel) {
-        if (channel === this.activeChannel) return;
-        
-        // Update active tab appearance
-        if (this.chatElements.chatTabs) {
-            this.chatElements.chatTabs.forEach(tab => {
-                // Skip add/remove/settings buttons
-                if (tab.id === 'add-tab-button' || tab.id === 'remove-tab-button' || tab.id === 'settings-button') {
-                    return;
-                }
-                
-                if (tab.dataset.channel === channel) {
-                    tab.classList.add('togglebutton-normal--active');
-                    tab.style.color = '#fff';
-                    tab.style.borderBottomColor = '#007acc';
-                    tab.style.background = 'rgba(255,255,255,0.1)';
-                } else {
-                    tab.classList.remove('togglebutton-normal--active');
-                    tab.style.color = '#888';
-                    tab.style.borderBottomColor = 'transparent';
-                    tab.style.background = 'transparent';
-                }
-            });
-        }
-        
-        this.activeChannel = channel;
-        console.log(`💬 Switched to ${channel} channel`);
-        
-        // Update placeholder text
-        if (this.chatElements.chatInput) {
-            if (channel === 'english') {
-                this.chatElements.chatInput.placeholder = 'Type in English only...';
-            } else {
-                this.chatElements.chatInput.placeholder = 'Type message or /help for commands...';
-            }
-        }
-        
-        // Clear and reload messages for this channel (future feature)
-        // For now, we'll keep all messages in the same container
-    }
-
-    refreshTabs() {
-        // Re-query tabs in case DOM has changed
-        this.chatElements.chatTabs = document.querySelectorAll('.chat-tab-button');
-        console.log('Refreshed tabs, found:', this.chatElements.chatTabs.length);
-        
-        // Re-initialize tab listeners
-        this.initializeTabs();
-        
-        // Ensure global is active
-        this.switchToChannel('global');
-    }
-
-    setupSocketEvents() {
-        if (!this.socket) {
-            console.error('No socket available for chat events');
-            return;
-        }
-
-        console.log('Setting up chat socket events...');
-
-        // Regular chat messages
-        this.socket.on('chat_message', (data) => {
-            console.log('Received chat message:', data);
-            this.addMessage(data);
-        });
-
-        // System messages
-        this.socket.on('chat_system', (data) => {
-            console.log('Received system message:', data);
-            this.addSystemMessage(data.message, data.type || 'info');
-        });
-
-        // Announcements
-        this.socket.on('chat_announcement', (data) => {
-            console.log('Received announcement:', data);
-            this.addAnnouncement(data.message, data.from);
-        });
-
-        // Chat clear command
-        this.socket.on('chat_clear', () => {
-            console.log('Chat clear received');
-            this.clearChat();
-        });
-
-        // Chat errors
-        this.socket.on('chat_error', (data) => {
-            console.log('Chat error received:', data);
-            this.addSystemMessage(data.message, 'error');
-        });
-        
-        console.log('Chat socket events setup complete');
-    }
-
-    sendMessage() {
-        if (!this.chatElements.chatInput) {
-            console.warn('Chat input element not available');
-            return;
-        }
-        
-        const message = this.chatElements.chatInput.value.trim();
-        if (!message || !this.socket) {
-            console.warn('Cannot send message: empty message or no socket connection');
-            return;
-        }
-
-        console.log('Sending message:', message, 'to channel:', this.activeChannel);
-
-        // Check if it's a command
-        if (message.startsWith('/')) {
-            this.handleCommand(message);
-        } else {
-            // Send regular message to server
-            this.socket.emit('chat_message', {
-                message: message,
-                channel: this.activeChannel
-            });
-        }
-
-        // Clear input
-        this.chatElements.chatInput.value = '';
-        // Reset textarea height
-        this.chatElements.chatInput.style.height = '36px';
-    }
-    
-    handleCommand(message) {
-        const parts = message.split(' ');
-        const command = parts[0].toLowerCase();
-        const args = parts.slice(1);
-        
-        console.log('🔧 Processing command:', command, 'with args:', args);
-        
-        switch (command) {
-            case '/help':
-                this.showCommandHelp();
-                break;
-            case '/commands':
-                this.showAvailableCommands();
-                break;
-            case '/clear':
-                this.clearChat();
-                break;
-            case '/who':
-            case '/online':
-                // Send to server for processing
-                if (this.socket) {
-                    this.socket.emit('chat_command', { command: 'who' });
-                }
-                break;
-            default:
-                // Send command to server for processing
-                if (this.socket) {
-                    this.socket.emit('chat_command', {
-                        command: command.slice(1), // Remove the /
-                        args: args,
-                        fullMessage: message
-                    });
-                } else {
-                    this.addSystemMessage(`Unknown command: ${command}. Type /help for available commands.`, 'error');
-                }
-                break;
-        }
-    }
-
-    addMessage(data) {
-        const messageElement = this.createMessageElement(data);
-        this.addMessageToChat(messageElement);
-        
-        // Store in history
-        this.messageHistory.push(data);
-        this.trimMessageHistory();
-    }
-
-    addSystemMessage(message, type = 'info') {
-        const messageElement = document.createElement('div');
-        messageElement.className = `chat-message system ${type}`;
-        
-        messageElement.innerHTML = `<span class="system-text">${this.escapeHtml(message)}</span>`;
-        
-        this.addMessageToChat(messageElement);
-    }
-
-    addAnnouncement(message, from) {
-        const messageElement = document.createElement('div');
-        messageElement.className = 'chat-message announcement';
-        messageElement.innerHTML = `
-            <strong>📢 ANNOUNCEMENT from ${this.escapeHtml(from)}:</strong><br>
-            ${this.escapeHtml(message)}
-        `;
-        
-        this.addMessageToChat(messageElement);
-    }
-
-    createMessageElement(data) {
-        const messageElement = document.createElement('div');
-        messageElement.className = `chat-message ${data.channel || 'global'}`;
-        
-        const timestamp = new Date(data.timestamp).toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        // Role-based username colors
-        let usernameClass = '';
-        switch (data.role) {
-            case 'admin':
-                usernameClass = 'admin';
-                break;
-            case 'co-admin':
-                usernameClass = 'co-admin';
-                break;
-            case 'helper':
-                usernameClass = 'helper';
-                break;
-        }
-        
-        messageElement.innerHTML = `
-            <span class="chat-timestamp">[${timestamp}]</span>
-            <span class="chat-username ${usernameClass}">${this.escapeHtml(data.username)}:</span>
-            <span class="chat-text">${this.formatMessage(data.message)}</span>
-        `;
-
-        return messageElement;
-    }
-
-    addMessageToChat(messageElement) {
-        if (!this.chatElements.chatMessages) {
-            console.error('Chat messages container not available');
-            return;
-        }
-        
-        this.chatElements.chatMessages.appendChild(messageElement);
-        
-        // Auto-scroll to bottom
-        this.chatElements.chatMessages.scrollTop = this.chatElements.chatMessages.scrollHeight;
-        
-        // Remove old messages if too many
-        const messages = this.chatElements.chatMessages.children;
-        if (messages.length > this.maxMessages) {
-            this.chatElements.chatMessages.removeChild(messages[0]);
-        }
-    }
-
-    formatMessage(message) {
-        // Escape HTML first
-        let formatted = this.escapeHtml(message);
-        
-        // Format URLs (basic implementation)
-        formatted = formatted.replace(
-            /(https?:\/\/[^\s]+)/g,
-            '<a href="$1" target="_blank" rel="noopener">$1</a>'
-        );
-        
-        // Format @mentions
-        formatted = formatted.replace(
-            /@(\w+)/g,
-            '<span class="mention">@$1</span>'
-        );
-        
-        return formatted;
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    clearChat() {
-        if (this.chatElements.chatMessages) {
-            this.chatElements.chatMessages.innerHTML = '';
-            this.addSystemMessage('Chat cleared by moderator', 'info');
-        }
-    }
-
-    async loadChatHistory() {
-        try {
-            const token = localStorage.getItem('pokemon_mmo_token');
-            const response = await fetch('/api/game/chat/history?limit=20', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                const messages = await response.json();
-                messages.forEach(message => {
-                    this.addMessage({
-                        username: message.username,
-                        message: message.message,
-                        role: 'user', // Default role, would need to be included in DB
-                        timestamp: message.created_at
-                    });
-                });
-            }
-        } catch (error) {
-            console.error('Failed to load chat history:', error);
-        }
-    }
-
-    trimMessageHistory() {
-        if (this.messageHistory.length > this.maxMessages) {
-            this.messageHistory = this.messageHistory.slice(-this.maxMessages);
-        }
-    }
-
-    disableGameControls() {
-        // Disable game controls when typing in chat
-        if (window.gameManager && window.gameManager.playerController) {
-            window.gameManager.playerController.setControlsEnabled(false);
-        }
-    }
-
-    enableGameControls() {
-        // Re-enable game controls when not typing in chat
-        if (window.gameManager && window.gameManager.playerController) {
-            window.gameManager.playerController.setControlsEnabled(true);
-        }
-    }
-
-    // Show online player count
-    updateOnlineCount(count) {
-        const onlineCountElement = document.getElementById('onlineCount');
-        if (onlineCountElement) {
-            onlineCountElement.textContent = count;
-        }
-    }
-
-    // Add typing indicator (future feature)
-    showTypingIndicator(username) {
-        const typingElement = document.createElement('div');
-        typingElement.className = 'typing-indicator';
-        typingElement.textContent = `${username} is typing...`;
-        typingElement.id = `typing-${username}`;
-        
-        if (this.chatElements.chatMessages) {
-            this.chatElements.chatMessages.appendChild(typingElement);
-            this.chatElements.chatMessages.scrollTop = this.chatElements.chatMessages.scrollHeight;
-        }
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            const element = document.getElementById(`typing-${username}`);
-            if (element && element.parentNode) {
-                element.parentNode.removeChild(element);
-            }
-        }, 3000);
-    }
-
-    // Show command help
-    showCommandHelp() {
-        const helpText = `Available commands:
-/help - Show this help message
-/commands - List all commands
-/who, /online - Show online players
-/clear - Clear chat messages`;
-        
-        this.addSystemMessage(helpText, 'info');
-    }
-    
-    showAvailableCommands() {
-        // This will be expanded based on user role
-        const user = window.authManager ? window.authManager.user : null;
-        let commands = [
-            '/help - Show help message',
-            '/commands - List all commands', 
-            '/who, /online - Show online players',
-            '/clear - Clear chat messages'
-        ];
-        
-        if (user && user.role !== 'user') {
-            commands.push('/mute <username> - Mute a user (Helper+)');
-        }
-        
-        if (user && (user.role === 'co-admin' || user.role === 'admin')) {
-            commands.push('/kick <username> - Kick a user (Co-Admin+)');
-            commands.push('/announce <message> - Server announcement');
-            commands.push('/promote <username> - Promote user to helper')
-        }
-        
-        if (user && user.role === 'admin') {
-            commands.push('/ban <username> - Ban a user (Admin only)');
-            commands.push('/shutdown - Shutdown server');
-            commands.push('/promote <username>&<role> - Promote user to helper or admin')
-        }
-        
-        this.addSystemMessage('Available commands:\n' + commands.join('\n'), 'info');
+        // Switch to channel logic
+        console.log('Switching to channel:', channel);
     }
     
     // Add a new tab

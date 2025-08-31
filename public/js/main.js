@@ -3,6 +3,7 @@ class PokemonMMO {
     constructor() {
         this.isInitialized = false;
         this.currentScreen = 'auth';
+        this.mainUI = null;
         
         // Initialize when DOM is ready
         if (document.readyState === 'loading') {
@@ -24,8 +25,21 @@ class PokemonMMO {
         // Setup window events
         this.setupWindowEvents();
         
+        // Initialize main UI
+        this.initializeMainUI();
+        
         console.log('✅ Pokemon MMO initialized');
         this.isInitialized = true;
+    }
+    
+    initializeMainUI() {
+        // Initialize the main UI components
+        if (typeof MainUI !== 'undefined') {
+            this.mainUI = new MainUI();
+            console.log('🎨 Main UI initialized');
+        } else {
+            console.warn('⚠️ MainUI class not found, UI components may not work');
+        }
     }
 
     async checkExistingSession() {

@@ -1,3 +1,46 @@
+// Check if another instance is already running
+if (typeof window !== 'undefined' && window.localStorage) {
+  // Generate a unique instance ID
+  const instanceId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  
+  // Check if another instance is already running
+  const existingInstanceId = localStorage.getItem('mapEditorInstanceId');
+  if (existingInstanceId) {
+    console.warn(`Map editor instance ${existingInstanceId} is already running`);
+    // Try to communicate with the existing instance
+    try {
+      // Dispatch a custom event to notify the existing instance
+      window.dispatchEvent(new CustomEvent('mapEditorFocusRequested'));
+    } catch (e) {
+      console.warn('Could not communicate with existing instance:', e);
+    }
+  } else {
+    // Set current instance
+    localStorage.setItem('mapEditorInstanceId', instanceId);
+    
+    // Clean up on unload
+    window.addEventListener('beforeunload', () => {
+      // Only remove if this is still the active instance
+      if (localStorage.getItem('mapEditorInstanceId') === instanceId) {
+        localStorage.removeItem('mapEditorInstanceId');
+      }
+    });
+    
+    // Listen for focus requests from new instances
+    window.addEventListener('mapEditorFocusRequested', () => {
+      // Try to bring this window to focus if possible
+      window.focus();
+      
+      // Show a visual indication that this is the active instance
+      if (typeof showNotification === 'function') {
+        showNotification('This editor is already open in another window/tab');
+      } else {
+        console.info('Map editor is already open - focusing this window');
+      }
+    });
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     // History management class - Moved to the top to avoid initialization error
     class History {

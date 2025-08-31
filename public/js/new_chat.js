@@ -178,4 +178,18 @@ class NewChatManager {
     }
 }
 
-window.newChatManager = new NewChatManager();
+document.addEventListener('DOMContentLoaded', () => {
+    window.newChatManager = new NewChatManager();
+    // The chat manager needs the socket instance.
+    // We can get it from the game manager when it's initialized.
+    const originalGameInit = window.gameManager?.initialize;
+    if (originalGameInit) {
+        window.gameManager.initialize = function(...args) {
+            return originalGameInit.apply(this, args).then(() => {
+                if (window.newChatManager && this.socket) {
+                    window.newChatManager.initialize(this.socket);
+                }
+            });
+        };
+    }
+});

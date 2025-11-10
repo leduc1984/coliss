@@ -63,7 +63,7 @@ Frontend (Browser)           Backend (Node.js)           Database (PostgreSQL)
 ### 🔧 Core Backend Files
 
 #### `server.js`
-**Purpose**: Main application entry point
+**Purpose**: Main application entry point.
 - Initializes Express server and Socket.io
 - Sets up middleware (CORS, Helmet, Rate Limiting)
 - Mounts authentication routes

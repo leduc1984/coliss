@@ -64,7 +64,7 @@ Frontend (Browser)           Backend (Node.js)           Database (PostgreSQL)
 
 #### `server.js`
 **Purpose**: Main application entry point.
-- Initializes Express server and Socket.io
+- Initializes Express server and Socket.io..
 - Sets up middleware (CORS, Helmet, Rate Limiting)
 - Mounts authentication routes
 - Handles real-time game connections

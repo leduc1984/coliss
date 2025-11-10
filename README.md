@@ -1,4 +1,4 @@
-# 🎮 Pokemon MMO - Omega Ruby Style
+# 🎮 Pokemon MMO - Omega Ruby Style.
 
 A professional multiplayer Pokemon game inspired by Pokemon Omega Ruby, featuring real-time 3D gameplay, authentication system, role-based chat commands, and map editor.
 
